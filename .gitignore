@@ -1,0 +1,11 @@
+# Default ignore rules
+*.o
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+*.log
+*.swp
+*.swo
+/.vscode/
