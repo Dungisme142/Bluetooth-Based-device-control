@@ -77,14 +77,16 @@ Trong các hệ thống gia dụng quy mô nhỏ, việc phải thao tác trực
 
 ```text
 Bluetooth-based device control/
+├── .git/                   # Thư mục Git nội bộ
+├── cmake/                  # Cấu hình CMake cho toolchain ARM
 ├── docs/                   # Tài liệu thiết kế, sơ đồ khối, tổng quan project
 │   ├── images/            # Hình ảnh, sơ đồ khối, tài liệu thiết kế
 │   │   ├── design/        # Bản vẽ và tài liệu thiết kế
-│   │   └── block_diagram/# Sơ đồ khối hệ thống
+│   │   └── block_diagram/ # Sơ đồ khối hệ thống
 │   └── project_docs/     # Tổng quan project và hướng dẫn phát triển
 │       ├── Project_Overview.md
 │       └── Developer_Guide.md
-├── driver/                 # Ngoại vi phần cứng (UART, GPIO, Timers...)
+├── Drivers/                # Driver ngoại vi phần cứng (UART, GPIO, Timers...)
 │   ├── Inc/
 │   └── Src/
 ├── lib/                    # Thư viện mô-đun phần cứng
@@ -104,7 +106,27 @@ Bluetooth-based device control/
 │   └── test4.c
 ├── CMakeLists.txt
 ├── build_and_flash.bat
-└── README.md
+├── README.md
+├── startup_stm32f103xb.s
+└── STM32F103xx_FLASH.ld
+```
+
+### 🔧 Git và commit
+
+Sau khi chỉnh sửa tài liệu hoặc code, nên thực hiện theo các bước sau:
+
+```bash
+git status
+git add <file_or_folder>
+git commit -m "<message>"
+git push
+```
+
+Ví dụ:
+
+```bash
+git add docs/ docs/project_docs/Project_Overview.md
+git commit -m "docs: update project structure"
 ```
 
 ---
