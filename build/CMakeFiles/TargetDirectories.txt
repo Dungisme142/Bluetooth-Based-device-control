@@ -1,0 +1,2 @@
+D:/EmbeddedC/Bluetooth-Based Device Control/build/CMakeFiles/edit_cache.dir
+D:/EmbeddedC/Bluetooth-Based Device Control/build/CMakeFiles/rebuild_cache.dir
