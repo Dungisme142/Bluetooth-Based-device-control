@@ -77,45 +77,33 @@ Trong các hệ thống gia dụng quy mô nhỏ, việc phải thao tác trực
 
 ```text
 Bluetooth-based device control/
-├── docs/                   # Tài liệu thiết kế, sơ đồ khối, datasheet
+├── docs/                   # Tài liệu thiết kế, sơ đồ khối, tổng quan project
+│   ├── images/            # Hình ảnh, sơ đồ khối, tài liệu thiết kế
+│   │   ├── design/        # Bản vẽ và tài liệu thiết kế
+│   │   └── block_diagram/# Sơ đồ khối hệ thống
+│   └── project_docs/     # Tổng quan project và hướng dẫn phát triển
+│       ├── Project_Overview.md
+│       └── Developer_Guide.md
 ├── driver/                 # Ngoại vi phần cứng (UART, GPIO, Timers...)
 │   ├── Inc/
 │   └── Src/
 ├── lib/                    # Thư viện mô-đun phần cứng
 │   ├── Inc/
-│   │   ├── DHT11.h
-│   │   ├── HC05.h
-│   │   ├── MKE_M01_LED.h
-│   │   ├── MKE_M05_RELAY.h
-│   │   └── SSD1306.h
 │   └── Src/
-│       ├── DHT11.c
-│       ├── HC05.c
-│       ├── MKE_M01_LED.c
-│       ├── MKE_M05_RELAY.c
-│       └── SSD1306.c
 ├── logic/                  # Các tác vụ logic chính (Tasks)
 │   ├── Inc/
-│   │   ├── ACTUATOR_TASK.h # Task điều khiển Relay & LED
-│   │   ├── DISPLAY_TASK.h  # Task quản lý giao diện OLED
-│   │   ├── PROTOCOL_TASK.h # Task giải mã lệnh UART & phản hồi
-│   │   ├── SENSOR_TASK.h   # Task đọc & xử lý dữ liệu DHT11
-│   │   └── TIMER_TASK.h    # Task định thời & lập lịch tác vụ
 │   └── Src/
-│       ├── ACTUATOR_TASK.c
-│       ├── DISPLAY_TASK.c
-│       ├── PROTOCOL_TASK.c
-│       ├── SENSOR_TASK.c
-│       └── TIMER_TASK.c
 ├── src/                    # Điểm khởi chạy ứng dụng
 │   ├── main.c
 │   ├── syscalls.c
 │   └── sysmem.c
 ├── test/                   # Thư mục kiểm thử (Test Bench)
-│   ├── test1.c             # TC1: Test ngoại vi độc lập
-│   ├── test2.c             # TC2: Test tích hợp 2 module
-│   └── test3.c             # TC3: Test toàn hệ thống
-├── .gitignore
+│   ├── test1.c
+│   ├── test2.c
+│   ├── test3.c
+│   └── test4.c
+├── CMakeLists.txt
+├── build_and_flash.bat
 └── README.md
 ```
 
