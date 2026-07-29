@@ -84,9 +84,10 @@ Bluetooth-based device control/
 │   └── project_docs/     # Tổng quan project và hướng dẫn phát triển
 │       ├── Project_Overview.md
 │       └── Developer_Guide.md
-├── driver/                 # Ngoại vi phần cứng (UART, GPIO, Timers...)
-│   ├── Inc/
-│   └── Src/
+├── Drivers/                 # Ngoại vi phần cứng (UART, GPIO, Timers...)
+│   ├── BSP/
+│   └── CMSIS/
+    └── STM32F1xx_HAL_Driver/
 ├── lib/                    # Thư viện mô-đun phần cứng
 │   ├── Inc/
 │   └── Src/
