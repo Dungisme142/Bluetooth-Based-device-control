@@ -1,3 +1,7 @@
+#include "SSD1306.h"
+#include "font5x7.h"
+#include "stdint.h"
+#include "stdio.h"
 #include "stm32f1xx_hal.h"
 #include "stm32f1xx_hal_i2c.h"
 #include "stm32f1xx_hal_uart.h"
