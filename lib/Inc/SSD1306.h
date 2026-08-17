@@ -1,4 +1,9 @@
-/* SSD1306 OLED driver header */
+/**
+ * @file SSD1306.h
+ * @brief Driver cho màn hình OLED SSD1306 (I2C) trên STM32 HAL: gồm lớp giao
+ * tiếp phần cứng (gửi lệnh/dữ liệu qua I2C), lớp framebuffer (vẽ trong RAM)
+ * và lớp văn bản (vẽ ký tự/chuỗi dùng font5x7).
+ */
 #ifndef SSD1306_H
 #define SSD1306_H
 
@@ -93,49 +98,59 @@ typedef struct {
  * Làm việc trực tiếp với chip qua HAL I2C, không đụng tới framebuffer.
  * Đây là lớp thấp nhất, các lớp phía trên (framebuffer/vẽ) dựng trên đây. */
 
-/* Gửi chuỗi lệnh khởi tạo, bật nguồn charge pump, bật display. Gọi 1 lần sau
- * khi I2C peripheral đã init xong (đã có sẵn phần triển khai). */
+/**
+ * @brief Khởi tạo chip SSD1306: gửi chuỗi lệnh cấu hình, bật nguồn charge
+ * pump, bật display. Gọi 1 lần sau khi I2C peripheral đã init xong.
+ */
 HAL_StatusTypeDef SSD1306_Init (I2C_HandleTypeDef* hi2c);
 
-/* Gửi 1 byte lệnh (control byte 0x00) - đã có sẵn phần triển khai. */
+/** @brief Gửi 1 byte lệnh tới chip (control byte 0x00). */
 HAL_StatusTypeDef SSD1306_SendCommand (I2C_HandleTypeDef* hi2c, uint8_t command);
 
-/* Gửi khối dữ liệu pixel (control byte 0x40) - đã có sẵn phần triển khai. */
+/** @brief Gửi khối dữ liệu pixel tới GDDRAM của chip (control byte 0x40). */
 HAL_StatusTypeDef SSD1306_SendData (I2C_HandleTypeDef* hi2c, uint8_t* data, size_t size);
 
-/* Bật/tắt display (không xoá nội dung GDDRAM, chỉ tắt nguồn hiển thị). */
+/** @brief Bật display (không xoá nội dung GDDRAM, chỉ bật nguồn hiển thị). */
 HAL_StatusTypeDef SSD1306_DisplayOn (I2C_HandleTypeDef* hi2c);
+/** @brief Tắt display (không xoá nội dung GDDRAM, chỉ tắt nguồn hiển thị). */
 HAL_StatusTypeDef SSD1306_DisplayOff (I2C_HandleTypeDef* hi2c);
 
-/* Độ tương phản: value 0x00 - 0xFF (lệnh SSD1306_SETCONTRAST). */
+/** @brief Đặt độ tương phản: value 0x00 - 0xFF (lệnh SSD1306_SETCONTRAST). */
 HAL_StatusTypeDef SSD1306_SetContrast (I2C_HandleTypeDef* hi2c, uint8_t value);
 
-/* Đảo màu toàn màn hình: invert = 1 bật, 0 tắt (SSD1306_INVERTDISPLAY /
- * SSD1306_NORMALDISPLAY). */
+/**
+ * @brief Đảo màu toàn màn hình: invert = 1 bật, 0 tắt (SSD1306_INVERTDISPLAY
+ * / SSD1306_NORMALDISPLAY).
+ */
 HAL_StatusTypeDef SSD1306_InvertDisplay (I2C_HandleTypeDef* hi2c, uint8_t invert);
 
-/* Đặt con trỏ ghi GDDRAM về (column, page). page = y / 8 (0..7 với màn 64px).
- * Cần dùng nếu module đang ở PAGE_ADDRESSING_MODE; nếu dùng
+/**
+ * @brief Đặt con trỏ ghi GDDRAM về (column, page). page = y / 8 (0..7 với
+ * màn 64px). Cần dùng nếu module đang ở PAGE_ADDRESSING_MODE; nếu dùng
  * HORIZONTAL_ADDRESSING_MODE (mặc định trong ssd1306_init_cmds hiện tại) thì
  * có thể dùng SSD1306_COLUMNADDR/SSD1306_PAGEADDR để set vùng rồi stream cả
- * buffer trong 1 lần SendData. */
+ * buffer trong 1 lần SendData.
+ */
 HAL_StatusTypeDef SSD1306_SetCursor (I2C_HandleTypeDef* hi2c, uint8_t x, uint8_t page);
 
 /* ======================= Lớp framebuffer (vẽ trong RAM)
  * ======================= Các hàm này chỉ sửa ssd->buffer, KHÔNG giao tiếp I2C.
  * Phải gọi SSD1306_UpdateScreen() sau đó để đẩy hình lên màn hình thật. */
 
-/* Tô toàn bộ buffer bằng 1 màu. */
+/** @brief Tô toàn bộ buffer bằng 1 màu. */
 void SSD1306_Fill (ssd1306_t* ssd, SSD1306_COLOR color);
 
-/* Tiện ích = SSD1306_Fill(ssd, SSD1306_COLOR_BLACK). */
+/** @brief Tiện ích = SSD1306_Fill(ssd, SSD1306_COLOR_BLACK). */
 void SSD1306_Clear (ssd1306_t* ssd);
 
-/* Bật/tắt 1 điểm ảnh tại (x, y). Nhớ bound-check x < width, y < height. */
+/** @brief Bật/tắt 1 điểm ảnh tại (x, y). Nhớ bound-check x < width, y < height. */
 void SSD1306_DrawPixel (ssd1306_t* ssd, uint16_t x, uint16_t y, SSD1306_COLOR color);
 
-/* Vẽ bitmap 1-bit (mảng byte, mỗi byte 8 pixel dọc giống layout GDDRAM,
- * hoặc tự định nghĩa layout riêng miễn là DrawPixel dùng đúng layout đó). */
+/**
+ * @brief Vẽ bitmap 1-bit (mảng byte, mỗi byte 8 pixel dọc giống layout
+ * GDDRAM, hoặc tự định nghĩa layout riêng miễn là DrawPixel dùng đúng layout
+ * đó).
+ */
 void SSD1306_DrawBitmap (ssd1306_t* ssd,
 uint16_t x,
 uint16_t y,
@@ -144,8 +159,10 @@ uint16_t w,
 uint16_t h,
 SSD1306_COLOR color);
 
-/* Đẩy toàn bộ ssd->buffer sang GDDRAM của chip qua I2C. Gọi sau mỗi lần
- * vẽ xong 1 "frame" (không nên gọi sau từng DrawPixel vì rất chậm). */
+/**
+ * @brief Đẩy toàn bộ ssd->buffer sang GDDRAM của chip qua I2C. Gọi sau mỗi
+ * lần vẽ xong 1 "frame" (không nên gọi sau từng DrawPixel vì rất chậm).
+ */
 HAL_StatusTypeDef SSD1306_UpdateScreen (I2C_HandleTypeDef* hi2c, ssd1306_t* ssd);
 
 /* ======================= Lớp văn bản =======================
@@ -153,11 +170,14 @@ HAL_StatusTypeDef SSD1306_UpdateScreen (I2C_HandleTypeDef* hi2c, ssd1306_t* ssd)
  * sẵn trong project này, bạn cần thêm (VD: font5x7.h) rồi include vào
  * SSD1306.c. */
 
-/* Vẽ 1 ký tự tại toạ độ góc trên-trái (x, y), trả về bề rộng ký tự vừa vẽ
- * (để gọi tiếp cho ký tự kế, hữu ích khi tự viết SSD1306_WriteString). */
+/**
+ * @brief Vẽ 1 ký tự tại toạ độ góc trên-trái (x, y).
+ * @return Bề rộng ký tự vừa vẽ (để gọi tiếp cho ký tự kế, hữu ích khi tự
+ * viết SSD1306_WriteString), hoặc 0 nếu không tìm thấy glyph cho ch.
+ */
 uint8_t SSD1306_WriteChar (ssd1306_t* ssd, uint16_t x, uint16_t y, char ch, SSD1306_COLOR color);
 
-/* Vẽ chuỗi ký tự, tự xuống dòng khi chạm mép phải (width). */
+/** @brief Vẽ chuỗi ký tự, tự xuống dòng khi chạm mép phải (width). */
 void SSD1306_WriteString (ssd1306_t* ssd, uint16_t x, uint16_t y, const char* str, SSD1306_COLOR color);
 
 #ifdef __cplusplus
