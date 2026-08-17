@@ -154,7 +154,8 @@ void DHT11_CallbackTIM2(void) {
 /**
  * @brief Xử lý ngắt ngoài EXTI để đo khoảng thời gian giữa các sườn xuống và giải mã bit.
  */
-void DHT11_CallbackEXTI(uint16_t GPIO_Pin) {
+void DHT11_CallbackEXTI(uint16_t exti_pin) {
+    (void)exti_pin;
     // Lấy khoảng thời gian từ nhịp sườn xuống trước đó và lập tức reset Timer
     uint16_t time_elapsed = __HAL_TIM_GET_COUNTER(&htim2);
     __HAL_TIM_SET_COUNTER(&htim2, 0);

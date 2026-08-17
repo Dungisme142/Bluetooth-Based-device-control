@@ -10,7 +10,7 @@
 
 Developer_Action_Result_t Command_Selecting(const Command_HandleTypeDef *Command_Menu, uint8_t Command_Menu_Size, char *return_msg, const char *received_cmd){
     if(received_cmd == NULL){
-        return fail;
+        return DEV_FAIL;
     }
     
     for(uint8_t i = 0; i < Command_Menu_Size; i++){
@@ -27,10 +27,10 @@ Developer_Action_Result_t Command_Selecting(const Command_HandleTypeDef *Command
                 continue;
             }
             Command_Menu[i].command_executing(return_msg, args_ptr);
-            return success;
+            return DEV_SUCCESS;
         }
     }
     snprintf(return_msg, 256, "Invalid Command\r\n");
-    return fail;
+    return DEV_FAIL;
 
 }

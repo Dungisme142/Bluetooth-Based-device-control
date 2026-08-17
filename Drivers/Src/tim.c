@@ -6,7 +6,7 @@
 /* 1000 us = 1 ms between update interrupts. */
 #define TIM_INTERRUPT_PERIOD_US (1000u)
 
-TIM_HandleTypeDef htim2;
+extern TIM_HandleTypeDef htim2;
 
 /* Return the real clock frequency supplied to TIM2. */
 static uint32_t TIM2_GetClockFrequency(void)
@@ -88,19 +88,19 @@ void TIM2_IRQHandler(void)
 }
 
 /* HAL callback after a timer period has elapsed. */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-    if (htim->Instance == TIM2)
-    {
-        TIM_Driver_TickCallback();
-    }
-}
+// void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+// {
+//     if (htim->Instance == TIM2)
+//     {
+//         TIM_Driver_TickCallback();
+//     }
+// }
 
-/*
- * Default callback: intentionally empty.
- * TIMER_TASK.c provides a strong definition that overrides this weak one.
- */
-__weak void TIM_Driver_TickCallback(void)
-{
-    /* No action when TIMER_TASK is not linked. */
-}
+// /*
+//  * Default callback: intentionally empty.
+//  * TIMER_TASK.c provides a strong definition that overrides this weak one.
+//  */
+// __weak void TIM_Driver_TickCallback(void)
+// {
+//     /* No action when TIMER_TASK is not linked. */
+// }

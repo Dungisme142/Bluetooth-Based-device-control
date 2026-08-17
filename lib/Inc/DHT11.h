@@ -66,5 +66,5 @@ void delay_us(uint16_t us);
 void DHT11_CallbackTIM2(void);
 bool DHT11_InputFilter(uint16_t pulse_width_us);
 void DHT11_ParseData(void);
-void DHT11_CallbackEXTI(uint16_t GPIO_Pin);
+void DHT11_CallbackEXTI(uint16_t exti_pin);
 #endif /* DHT11_H */
