@@ -10,18 +10,18 @@ Developer_Action_Result_t Frame_Builder_Init(Framing_Result_HandleTypeDef *frami
         framing_result_handler->framing_result_data_size_byte = framing_result_data_size_byte;
         framing_result_handler->max_frame_size = max_frame_size;
         framing_result_handler->framing_result_index = 0;
-        framing_result_handler->framing_result_ready_to_read = false;
-        return success;
+        framing_result_handler->framing_result_ready_to_read = DEV_FALSE;
+        return DEV_SUCCESS;
     }
     else{
-        return fail;
+        return DEV_FAIL;
     }
 }
 
 Developer_Action_Result_t Frame_Building(Framing_Result_HandleTypeDef *framing_result_handler, Filting_Result_t fliting_result, void *current_processed_data){
     if(framing_result_handler != NULL){
         if(fliting_result == filting_result_ignore){
-            return success;
+            return DEV_SUCCESS;
         }
         if(framing_result_handler->framing_result_index < framing_result_handler->max_frame_size - 1){
             if(fliting_result == filting_result_save_and_continue){
@@ -32,7 +32,7 @@ Developer_Action_Result_t Frame_Building(Framing_Result_HandleTypeDef *framing_r
             else if(fliting_result == filting_result_finish){
                 uint8_t *dest = (uint8_t*)framing_result_handler->framing_result_ptr + (framing_result_handler->framing_result_index) * (framing_result_handler->framing_result_data_size_byte);
                 memset(dest, '\0', framing_result_handler->framing_result_data_size_byte);
-                framing_result_handler->framing_result_ready_to_read = true;
+                framing_result_handler->framing_result_ready_to_read = DEV_TRUE;
             }
             else if(fliting_result == filting_result_backspace){
                 if(framing_result_handler->framing_result_index > 0){
@@ -40,42 +40,42 @@ Developer_Action_Result_t Frame_Building(Framing_Result_HandleTypeDef *framing_r
                 }
             }
             else if(fliting_result == filting_result_error){
-                return fail;
+                return DEV_FAIL;
             }
-            return success;
+            return DEV_SUCCESS;
         }
         else if(framing_result_handler->framing_result_index == framing_result_handler->max_frame_size - 1){
             if(fliting_result == filting_result_finish){
                 uint8_t *dest = (uint8_t*)framing_result_handler->framing_result_ptr + (framing_result_handler->framing_result_index) * (framing_result_handler->framing_result_data_size_byte);
                 memset(dest, '\0', framing_result_handler->framing_result_data_size_byte);
-                framing_result_handler->framing_result_ready_to_read = true;
-                return success;
+                framing_result_handler->framing_result_ready_to_read = DEV_TRUE;
+                return DEV_SUCCESS;
             }
             else if(fliting_result == filting_result_backspace){
                 framing_result_handler->framing_result_index -= 1;
-                return success;
+                return DEV_SUCCESS;
             }
             else{
                 framing_result_handler->framing_result_index += 1;
-                return success;
+                return DEV_SUCCESS;
             }
         }
         else{
             if(fliting_result == filting_result_backspace){
                 framing_result_handler->framing_result_index -= 1;
-                return success;
+                return DEV_SUCCESS;
             }
             else if (fliting_result == filting_result_finish){
-                return fail;
+                return DEV_FAIL;
             }
             else{
                 framing_result_handler->framing_result_index += 1;
-                return success;
+                return DEV_SUCCESS;
             }
         }
     }
     
     else{
-        return fail;
+        return DEV_FAIL;
     }
 }

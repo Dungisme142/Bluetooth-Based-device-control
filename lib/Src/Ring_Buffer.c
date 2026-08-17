@@ -12,10 +12,10 @@ Developer_Action_Result_t Ring_Buffer_Init(Ring_Buffer_HandleTypeDef *ring_buffe
         ring_buffer_handler->ring_buffer_write_index = 0;
         ring_buffer_handler->ring_buffer_read_index = 0;
         ring_buffer_handler->ring_buffer_status = ring_buffer_empty;
-        return success;
+        return DEV_SUCCESS;
     }
     else{
-        return fail;
+        return DEV_FAIL;
     }
 }
 
@@ -38,14 +38,14 @@ Developer_Action_Result_t Ring_Buffer_Write_SingleData(Ring_Buffer_HandleTypeDef
             uint8_t *dest = (uint8_t*)ring_buffer_handler->ring_buffer_ptr + (ring_buffer_handler->ring_buffer_write_index) * (ring_buffer_handler->ring_buffer_data_size_byte);
             memcpy(dest, data_source, ring_buffer_handler->ring_buffer_data_size_byte);
             ring_buffer_handler->ring_buffer_write_index = ((ring_buffer_handler->ring_buffer_write_index + 1) % ring_buffer_handler->ring_buffer_size);
-            return success;
+            return DEV_SUCCESS;
         }
         else{
-            return fail;
+            return DEV_FAIL;
         }
     }
     else{
-        return fail;
+        return DEV_FAIL;
     }
     
 }
@@ -57,14 +57,14 @@ Developer_Action_Result_t Ring_Buffer_Read_SingleData(Ring_Buffer_HandleTypeDef 
             uint8_t *src = (uint8_t*)ring_buffer_handler->ring_buffer_ptr + (ring_buffer_handler->ring_buffer_read_index) * (ring_buffer_handler->ring_buffer_data_size_byte);
             memcpy(data_dest, src, ring_buffer_handler->ring_buffer_data_size_byte);
             ring_buffer_handler->ring_buffer_read_index = ((ring_buffer_handler->ring_buffer_read_index + 1) % ring_buffer_handler->ring_buffer_size);
-            return success;
+            return DEV_SUCCESS;
         }   
         else{
-            return fail;
+            return DEV_FAIL;
         }
     }
     else{
-        return fail;
+        return DEV_FAIL;
     }
 }
 

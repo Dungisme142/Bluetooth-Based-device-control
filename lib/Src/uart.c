@@ -12,14 +12,14 @@
 
 Developer_Action_Result_t Developer_UART_Handler_Init(Developer_UART_HandleTypeDef *developer_uart_handler, UART_HandleTypeDef *hal_huart, Ring_Buffer_HandleTypeDef *ring_buffer_handler_ptr, Framing_Result_HandleTypeDef *framing_result_handler_ptr){
     if((developer_uart_handler == NULL) || (hal_huart == NULL) || (ring_buffer_handler_ptr == NULL) || (framing_result_handler_ptr == NULL)){
-        return fail;
+        return DEV_FAIL;
     }
     developer_uart_handler->hal_huart = hal_huart;
     developer_uart_handler->ring_buffer_handler_ptr = ring_buffer_handler_ptr;
     developer_uart_handler->framing_result_handler_ptr = framing_result_handler_ptr;
     developer_uart_handler->last_received_tick = 0;
     developer_uart_handler->uart_connecting_status = developer_uart_disconnected;
-    return success;
+    return DEV_SUCCESS;
 }
 
 
@@ -54,21 +54,21 @@ void UART_Task(Developer_UART_HandleTypeDef *developer_uart_handler){
     UART_Connecting_Status_Check(developer_uart_handler);
     
     uint8_t current_processed_data;
-    if(Ring_Buffer_Read_SingleData(developer_uart_handler->ring_buffer_handler_ptr, &current_processed_data) == success){
-        if(Frame_Building(developer_uart_handler->framing_result_handler_ptr, Text_Filting(&current_processed_data), &current_processed_data) == success){
-            if(developer_uart_handler->framing_result_handler_ptr->framing_result_ready_to_read == true){
+    if(Ring_Buffer_Read_SingleData(developer_uart_handler->ring_buffer_handler_ptr, &current_processed_data) == DEV_SUCCESS){
+        if(Frame_Building(developer_uart_handler->framing_result_handler_ptr, Text_Filting(&current_processed_data), &current_processed_data) == DEV_SUCCESS){
+            if(developer_uart_handler->framing_result_handler_ptr->framing_result_ready_to_read == DEV_TRUE){
                 char return_msg[256];
                 Command_Selecting(Command_Menu, Command_Menu_Size, return_msg, (char*)developer_uart_handler->framing_result_handler_ptr->framing_result_ptr);
                 UART_Print(developer_uart_handler, return_msg);
                 //reset
-                developer_uart_handler->framing_result_handler_ptr->framing_result_ready_to_read = false;
+                developer_uart_handler->framing_result_handler_ptr->framing_result_ready_to_read = DEV_FALSE;
                 developer_uart_handler->framing_result_handler_ptr->framing_result_index = 0;
             }
         }
         else{
             UART_Print(developer_uart_handler, "Fail, try again!\r\n");
             //reset
-            developer_uart_handler->framing_result_handler_ptr->framing_result_ready_to_read = false;
+            developer_uart_handler->framing_result_handler_ptr->framing_result_ready_to_read = DEV_FALSE;
             developer_uart_handler->framing_result_handler_ptr->framing_result_index = 0;
         }
     }
