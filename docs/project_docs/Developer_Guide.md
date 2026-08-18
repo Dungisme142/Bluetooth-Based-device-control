@@ -1,5 +1,26 @@
 # HƯỚNG DẪN LÀM PROJECT BLUETOOTH-BASED DEVICE CONTROL
 
+> ### ⚠️ Trạng thái tài liệu
+>
+> Phần phân công dưới đây là **kế hoạch ban đầu**, giữ lại để tra cứu ai phụ trách
+> mảng nào. Bố cục file trong đó **không còn khớp với repo**: tầng `logic/` và
+> `Drivers/Src/tim.c` đã bị gỡ (không nằm trong build, trùng chức năng với code
+> thật), còn `onewire.c`, `gpio.c`, `HC05.c`, `MKE_M01_LED.c` thì chưa bao giờ tồn tại.
+>
+> Ánh xạ từ vai trò sang file đang chạy thật:
+>
+> | Vai trò | File thật |
+> |---|---|
+> | Cảm biến | `lib/{Inc,Src}/DHT11.c`, `Dht11_ReadOnce()` trong `src/main.c` |
+> | Timer / ngắt | `Board_TIM2_Init()` trong `src/board.c`, toàn bộ vector trong `src/stm32f1xx_it.c`. Nhịp tác vụ chạy bằng `HAL_GetTick()` trong vòng lặp chính, không phải TIM2 |
+> | Chấp hành | `lib/{Inc,Src}/MKE_M05_RELAY.c`, `Relay_SetState()` trong `src/main.c` |
+> | UART / Bluetooth | `lib/Src/uart.c`, `Ring_Buffer.c`, `Text_Filter.c`, `Frame_Builder.c`, `Command_Selector.c`; bảng lệnh `Command_Menu[]` trong `src/main.c` |
+> | OLED | `lib/Src/SSD1306.c`, `font5x7.c`, và `src/ui.c` (4 trang + 2 nút) |
+>
+> Kiến trúc hiện tại: `docs/project_docs/Project_Overview.md` §7. Bảng chân: `local/PIN_MAP.md`.
+
+---
+
 ## 1. Phân công nhiệm vụ cho từng thành viên
 
 Dự án này được chia theo tầng: driver, library, logic, test. Mỗi thành viên nên tập trung vào một nhóm file để tránh xung đột và dễ kiểm soát.

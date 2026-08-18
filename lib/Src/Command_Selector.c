@@ -1,36 +1,51 @@
+/*
+ * Command_Selector.c — CƠ CHẾ tra bảng lệnh: khớp tên lệnh, tách tham số,
+ * gọi handler tương ứng.
+ *
+ * NỘI DUNG bảng lệnh (Command_Menu[] và các handler) nằm ở src/app_command.c.
+ * Tách hai thứ này ra vì handler phải chạm vào trạng thái ứng dụng; để chung
+ * ở đây thì file trong lib/ buộc phải biết tới tầng app và mất khả năng dùng lại.
+ */
+
 #include "Command_Selector.h"
+
 #include "Global_Enum.h"
-#include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
+Developer_Action_Result_t Command_Selecting(const Command_HandleTypeDef *command_menu,
+                                            uint8_t command_menu_size,
+                                            char *return_msg,
+                                            const char *received_cmd)
+{
+    uint8_t i;
 
-
-Developer_Action_Result_t Command_Selecting(const Command_HandleTypeDef *Command_Menu, uint8_t Command_Menu_Size, char *return_msg, const char *received_cmd){
-    if(received_cmd == NULL){
+    if ((command_menu == NULL) || (return_msg == NULL) || (received_cmd == NULL)) {
         return DEV_FAIL;
     }
-    
-    for(uint8_t i = 0; i < Command_Menu_Size; i++){
-        uint8_t cmd_len = strlen(Command_Menu[i].command);
-        if(strncmp(received_cmd, Command_Menu[i].command, cmd_len) == 0){
-            const char *args_ptr = NULL;
-            if(received_cmd[cmd_len] == '\0'){
-                args_ptr = NULL;
-            }
-            else if(received_cmd[cmd_len] == ' '){
-                args_ptr = received_cmd + cmd_len + 1;
-            }
-            else{
-                continue;
-            }
-            Command_Menu[i].command_executing(return_msg, args_ptr);
+
+    for (i = 0u; i < command_menu_size; i++) {
+        size_t cmd_len = strlen(command_menu[i].command);
+
+        if (strncmp(received_cmd, command_menu[i].command, cmd_len) != 0) {
+            continue;
+        }
+
+        /* Khớp tiền tố chưa đủ: "ONLINE" cũng bắt đầu bằng "ON". Chỉ nhận khi
+         * ngay sau tên lệnh là hết chuỗi (không tham số) hoặc một dấu cách
+         * (phần còn lại là tham số). */
+        if (received_cmd[cmd_len] == '\0') {
+            command_menu[i].command_executing(return_msg, NULL);
+            return DEV_SUCCESS;
+        }
+        if (received_cmd[cmd_len] == ' ') {
+            command_menu[i].command_executing(return_msg, received_cmd + cmd_len + 1u);
             return DEV_SUCCESS;
         }
     }
-    snprintf(return_msg, 256, "Invalid Command\r\n");
-    return DEV_FAIL;
 
+    (void)snprintf(return_msg, COMMAND_RETURN_MSG_SIZE, "Invalid Command\r\n");
+    return DEV_FAIL;
 }

@@ -1,0 +1,30 @@
+# Định dạng chuẩn cho src/ và lib/ (mục 11 của docs/CODE_REVIEW.md).
+# Drivers/ là HAL của ST, không format lại — xem .clang-format-ignore.
+---
+Language: Cpp
+BasedOnStyle: LLVM
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 100
+
+# Thân hàm mở ngoặc ở dòng mới, còn if/for/while thì cùng dòng — đúng như
+# code hiện có trong src/ và lib/.
+BreakBeforeBraces: Linux
+
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+
+# case thẳng hàng với switch, giống DHT11_CallbackTIM2() và UI_Render().
+IndentCaseLabels: false
+
+PointerAlignment: Right
+SpaceAfterCStyleCast: false
+AlignAfterOpenBracket: Align
+AlignConsecutiveMacros: Consecutive
+SortIncludes: false
+ReflowComments: false
+InsertNewlineAtEOF: true

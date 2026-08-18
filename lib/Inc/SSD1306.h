@@ -7,6 +7,7 @@
 #ifndef SSD1306_H
 #define SSD1306_H
 
+#include "font5x7.h"
 #include "stm32f1xx_hal.h"
 
 #ifdef __cplusplus
@@ -160,15 +161,44 @@ uint16_t h,
 SSD1306_COLOR color);
 
 /**
+ * @brief Tô đặc hình chữ nhật (x, y) kích thước w x h bằng `color`.
+ *
+ * Dùng để dựng thanh tiêu đề đảo màu: tô trắng cả dải rồi ghi chữ màu đen
+ * đè lên bằng SSD1306_WriteString().
+ */
+void SSD1306_FillRect (ssd1306_t* ssd,
+uint16_t x,
+uint16_t y,
+uint16_t w,
+uint16_t h,
+SSD1306_COLOR color);
+
+/** @brief Vẽ khung viền 1 pixel của hình chữ nhật (x, y) kích thước w x h. */
+void SSD1306_DrawRect (ssd1306_t* ssd,
+uint16_t x,
+uint16_t y,
+uint16_t w,
+uint16_t h,
+SSD1306_COLOR color);
+
+/**
  * @brief Đẩy toàn bộ ssd->buffer sang GDDRAM của chip qua I2C. Gọi sau mỗi
  * lần vẽ xong 1 "frame" (không nên gọi sau từng DrawPixel vì rất chậm).
  */
 HAL_StatusTypeDef SSD1306_UpdateScreen (I2C_HandleTypeDef* hi2c, ssd1306_t* ssd);
 
 /* ======================= Lớp văn bản =======================
- * Cần 1 bảng font 5x7 (hoặc kích thước khác) dạng const uint8_t[] - chưa có
- * sẵn trong project này, bạn cần thêm (VD: font5x7.h) rồi include vào
- * SSD1306.c. */
+ * Bảng glyph nằm ở font5x7.c — một bảng dữ liệu thuần, giữ là file riêng để
+ * không làm loãng file logic. Người dùng driver không cần include font5x7.h:
+ * hai hằng duy nhất họ cần khi tự tính bố cục được phơi lại ngay dưới đây. */
+
+/* Bề rộng thực tế mỗi ký tự chiếm khi vẽ chuỗi (glyph + 1 cột ngăn cách).
+ * SSD1306_WriteChar() trả về đúng giá trị này. */
+#define SSD1306_CHAR_ADVANCE   FONT5X7_ADVANCE
+
+/* Ký hiệu độ (°) không nằm trong ASCII nên được nhét vào ô 0x7F của bảng font.
+ * Dùng qua %c của snprintf, không viết thẳng trong chuỗi C được. */
+#define SSD1306_DEGREE_CHAR    FONT5X7_DEGREE_CHAR
 
 /**
  * @brief Vẽ 1 ký tự tại toạ độ góc trên-trái (x, y).

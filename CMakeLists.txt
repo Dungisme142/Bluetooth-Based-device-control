@@ -15,8 +15,11 @@ endif()
 # Source files
 # ============================================================
 
-# Gom toàn bộ file .c trong src/, lib/, Drivers/
-file(GLOB_RECURSE PROJECT_SOURCES
+# Gom toàn bộ file .c trong src/, lib/, Drivers/.
+# CONFIGURE_DEPENDS: thêm hoặc xoá một file .c thì build tự chạy lại cmake.
+# Không có nó thì danh sách file bị đóng băng từ lần configure đầu và build sẽ
+# gãy với "missing and no known rule to make it" sau khi xoá/tách file.
+file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/src/*.c"
     "${CMAKE_SOURCE_DIR}/lib/Src/*.c"
     "${CMAKE_SOURCE_DIR}/Drivers/Src/*.c"

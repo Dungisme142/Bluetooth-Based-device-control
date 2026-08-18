@@ -1,12 +1,112 @@
-# Default ignore rules
+# ============================================================
+# Build output (CMake / Ninja / Make)
+# ============================================================
+/build/
+/build-*/
+/cmake-build-*/
+/out/
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+CTestTestfile.cmake
+install_manifest.txt
+compile_commands.json
+Testing/
+*.ninja
+.ninja_deps
+.ninja_log
+Makefile.local
+
+# ============================================================
+# Firmware / toolchain artifacts
+# ============================================================
 *.o
+*.obj
+*.a
+*.la
+*.lo
+*.so
+*.d
 *.elf
 *.bin
 *.hex
+*.srec
 *.map
 *.lst
+*.lss
+*.su
+*.cyclo
+*.gcno
+*.gcda
+*.gcov
+
+# ============================================================
+# Debug / trace / log
+# ============================================================
 *.log
+*.trace
+*.stackdump
+core
+*.core
+
+# ============================================================
+# IDE & editor
+# ============================================================
+/.vscode/
+/.idea/
+*.code-workspace
+# STM32CubeIDE / Eclipse
+/.settings/
+.cproject
+.project
+.mxproject
+*.launch
+Debug/
+Release/
+# Keil MDK
+*.uvguix.*
+*.uvoptx
+*.uvprojx.bak
+JLinkLog.txt
+JLinkSettings.ini
+# IAR
+/settings/
+*.dep
+*.ewt
+# Vim / Emacs / misc
 *.swp
 *.swo
-/.vscode/
-/build/
+*~
+\#*\#
+.\#*
+
+# ============================================================
+# OS junk
+# ============================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# ============================================================
+# Python (scripts/tooling)
+# ============================================================
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# ============================================================
+# Local-only notes (không commit)
+# ============================================================
+/local/
+
+# ============================================================
+# Cấu hình deploy riêng của từng máy (hostname/IP nội bộ)
+# ============================================================
+/scripts/.env
+*.env.local
+.env
+!scripts/.env.example

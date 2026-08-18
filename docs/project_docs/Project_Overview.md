@@ -87,19 +87,19 @@ Bluetooth-based device control/
 │       ├── Project_Overview.md
 │       └── Developer_Guide.md
 
-├── Drivers/                 # Ngoại vi phần cứng (UART, GPIO, Timers...)
-│   ├── BSP/
-│   └── CMSIS/
-    └── STM32F1xx_HAL_Driver/
-├── lib/                    # Thư viện mô-đun phần cứng
+├── Drivers/                 # HAL/CMSIS của ST
+│   ├── CMSIS/
+│   ├── Inc/                # stm32f1xx_hal_conf.h
+│   └── STM32F1xx_HAL_Driver/
+├── lib/                    # Thư viện mô-đun phần cứng + hạ tầng lệnh
 │   ├── Inc/
 │   └── Src/
-├── logic/                  # Các tác vụ logic chính (Tasks)
-│   ├── Inc/
-│   └── Src/
-├── src/                    # Điểm khởi chạy ứng dụng
-│   ├── main.c
-│   ├── syscalls.c
+├── src/                    # Tầng ứng dụng
+│   ├── board.c / board.h   # BSP: clock, GPIO, USART1, I2C1, TIM2
+│   ├── main.c              # Trạng thái hệ thống, vòng lặp chính, bảng lệnh
+│   ├── ui.c / ui.h         # 4 trang OLED + 2 nút điều hướng
+│   ├── stm32f1xx_it.c      # Toàn bộ vector ngắt
+│   ├── stm32f1xx_hal_msp.c # Cấu hình mức thấp từng ngoại vi
 │   └── sysmem.c
 ├── test/                   # Thư mục kiểm thử (Test Bench)
 │   ├── test1.c
@@ -133,55 +133,23 @@ git commit -m "docs: update project structure"
 
 ---
 
-## 7. MÔ TẢ CHI TIẾT CÁC TÁC VỤ LOGIC (LOGIC TASKS)
+## 7. MÔ TẢ CHI TIẾT CÁC MÔ-ĐUN
 
-Tầng `logic` đóng vai trò điều phối toàn bộ hoạt động của hệ thống theo dạng đa nhiệm định thời (Time-triggered Architecture). Mỗi task đảm nhận một chức năng riêng biệt.
+> **Cập nhật:** thiết kế ban đầu dự tính một tầng `logic/` gồm 5 task
+> (`SENSOR_TASK`, `TIMER_TASK`, `ACTUATOR_TASK`, `PROTOCOL_TASK`, `DISPLAY_TASK`).
+> Tầng đó **đã được gỡ bỏ**: nó chưa bao giờ nằm trong build (CMake chỉ gom
+> `src/`, `lib/Src/`, `Drivers/`) và trùng chức năng với code đang chạy thật.
+> Bảng dưới đây ghi lại chức năng đó **hiện nằm ở đâu**.
 
-* **`SENSOR_TASK` (`SENSOR_TASK.h` / `SENSOR_TASK.c`):**
-  * Đọc và xử lý dữ liệu từ cảm biến DHT11.
-  * Kiểm tra lỗi dữ liệu như timeout hoặc checksum.
-  * Cung cấp dữ liệu môi trường cho các task khác.
-  * Các hàm thường dùng:
-    * `SENSOR_Init()` — khởi tạo cảm biến và cấu hình ban đầu.
-    * `SENSOR_ReadData()` — đọc dữ liệu nhiệt độ và độ ẩm từ DHT11.
-    * `SENSOR_Update()` — cập nhật dữ liệu cảm biến vào biến hệ thống.
-    * Comment gợi ý trong code: `// Đọc dữ liệu cảm biến DHT11`.
+| Chức năng (tên task cũ) | Nơi thực thi hiện tại |
+|---|---|
+| `SENSOR_TASK` — đọc DHT11, kiểm tra timeout/checksum | `lib/Src/DHT11.c` (máy trạng thái + checksum) và `Dht11_ReadOnce()` trong `src/main.c` (một phép đo trọn vẹn, tối đa ~500 ms) |
+| `TIMER_TASK` — nhịp định kỳ cho các tác vụ | Vòng lặp chính trong `src/main.c` so sánh `HAL_GetTick()` với các mốc `SENSOR_PERIOD_MS` / `STATUS_PERIOD_MS` / `HEARTBEAT_PERIOD_MS`. TIM2 **không** dùng làm nhịp hệ thống — nó là đồng hồ micro-giây riêng của DHT11, cấu hình trong `Board_TIM2_Init()` |
+| `ACTUATOR_TASK` — điều khiển relay và LED | `Relay_SetState()` trong `src/main.c`, dựng trên `lib/Src/MKE_M05_RELAY.c` |
+| `PROTOCOL_TASK` — nhận và phân tích lệnh Bluetooth | Chuỗi `lib/Src/Ring_Buffer.c` → `Text_Filter.c` → `Frame_Builder.c` → `Command_Selector.c`, điều phối bởi `UART_Task()` trong `lib/Src/uart.c`. Bảng lệnh `Command_Menu[]` khai báo trong `src/main.c` |
+| `DISPLAY_TASK` — hiển thị OLED | `src/ui.c` — 4 trang (GPIO STATUS, DHT11 SENSOR, UART LOG, HƯỚNG DẪN), chuyển trang bằng 2 nút EXTI trên PA0/PA1 |
 
-* **`TIMER_TASK` (`TIMER_TASK.h` / `TIMER_TASK.c`):**
-  * Quản lý ngắt định thời cho hệ thống.
-  * Tạo các cờ báo định kỳ cho các task khác.
-  * Các hàm thường dùng:
-    * `TIMER_Init()` — khởi tạo timer và ngắt định thời.
-    * `TIMER_Start()` — bắt đầu đếm thời gian.
-    * `TIMER_Update()` — xử lý các tick và cập nhật trạng thái định kỳ.
-    * Comment gợi ý trong code: `// Xử lý tick timer mỗi 1ms`.
-
-* **`ACTUATOR_TASK` (`ACTUATOR_TASK.h` / `ACTUATOR_TASK.c`):**
-  * Điều khiển Relay và LED theo lệnh hệ thống.
-  * Cập nhật trạng thái chấp hành cho toàn bộ hệ thống.
-  * Các hàm thường dùng:
-    * `ACTUATOR_Init()` — khởi tạo chân điều khiển Relay và LED.
-    * `ACTUATOR_SetRelay()` — bật hoặc tắt relay.
-    * `ACTUATOR_SetLED()` — đổi trạng thái LED.
-    * Comment gợi ý trong code: `// Bật/tắt relay`.
-
-* **`PROTOCOL_TASK` (`PROTOCOL_TASK.h` / `PROTOCOL_TASK.c`):**
-  * Nhận và phân tích lệnh từ Bluetooth.
-  * Chuyển lệnh sang task chấp hành phù hợp.
-  * Các hàm thường dùng:
-    * `PROTOCOL_Init()` — khởi tạo giao tiếp UART và bộ đệm nhận.
-    * `PROTOCOL_ParseCommand()` — phân tích lệnh nhận được.
-    * `PROTOCOL_SendResponse()` — gửi phản hồi về thiết bị điều khiển.
-    * Comment gợi ý trong code: `// Parse lệnh điều khiển từ UART`.
-
-* **`DISPLAY_TASK` (`DISPLAY_TASK.h` / `DISPLAY_TASK.c`):**
-  * Cập nhật dữ liệu lên màn hình OLED.
-  * Hiển thị trạng thái kết nối và trạng thái thiết bị.
-  * Các hàm thường dùng:
-    * `DISPLAY_Init()` — khởi tạo màn hình OLED.
-    * `DISPLAY_Update()` — cập nhật dữ liệu lên OLED.
-    * `DISPLAY_ShowStatus()` — hiển thị trạng thái hệ thống.
-    * Comment gợi ý trong code: `// Hiển thị nhiệt độ và độ ẩm`.
+Chi tiết chân, mức ưu tiên ngắt và ràng buộc phần cứng: xem `local/PIN_MAP.md`.
 
 ---
 

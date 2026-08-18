@@ -164,6 +164,40 @@ SSD1306_COLOR color) {
 	}
 }
 
+/** @brief Tô đặc hình chữ nhật vào buffer (xem SSD1306.h). */
+void SSD1306_FillRect (ssd1306_t* ssd,
+uint16_t x,
+uint16_t y,
+uint16_t w,
+uint16_t h,
+SSD1306_COLOR color) {
+	for (uint16_t row = 0; row < h; row++) {
+		for (uint16_t col = 0; col < w; col++) {
+			SSD1306_DrawPixel (ssd, x + col, y + row, color);
+		}
+	}
+}
+
+/** @brief Vẽ khung viền 1 pixel vào buffer (xem SSD1306.h). */
+void SSD1306_DrawRect (ssd1306_t* ssd,
+uint16_t x,
+uint16_t y,
+uint16_t w,
+uint16_t h,
+SSD1306_COLOR color) {
+	if (w == 0 || h == 0)
+		return;
+
+	for (uint16_t col = 0; col < w; col++) {
+		SSD1306_DrawPixel (ssd, x + col, y, color);
+		SSD1306_DrawPixel (ssd, x + col, y + h - 1, color);
+	}
+	for (uint16_t row = 0; row < h; row++) {
+		SSD1306_DrawPixel (ssd, x, y + row, color);
+		SSD1306_DrawPixel (ssd, x + w - 1, y + row, color);
+	}
+}
+
 /** @brief Đẩy buffer sang GDDRAM của chip qua I2C (xem SSD1306.h). */
 HAL_StatusTypeDef SSD1306_UpdateScreen (I2C_HandleTypeDef* hi2c, ssd1306_t* ssd) {
 	// Khi gửi SSD1306_COLUMNADDR và SSD1306_PAGEADDR thì 2 tham số tiếp theo
