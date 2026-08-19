@@ -93,7 +93,7 @@ static void DHT11_SetInput(void)
     HAL_GPIO_Init(dht_cfg.Port, &gpio_init);
 
     /* Xoá cờ ngắt cũ rồi mới cho phép ngắt trên NVIC.
-     * IRQn lấy từ cấu hình, không hardcode: PB15 dùng EXTI15_10_IRQn chứ
+     * IRQn lấy từ cấu hình, không hardcode: PB1 dùng EXTI1_IRQn chứ
      * không phải EXTI2. */
     __HAL_GPIO_EXTI_CLEAR_IT(dht_cfg.Pin);
     HAL_NVIC_EnableIRQ(dht_cfg.IRQn);

@@ -28,7 +28,7 @@ typedef struct {
 typedef struct {
     GPIO_TypeDef      *Port;
     uint16_t           Pin;
-    IRQn_Type          IRQn;   /* Đường ngắt EXTI tương ứng với Pin (vd PB15 -> EXTI15_10_IRQn) */
+    IRQn_Type          IRQn;   /* Đường ngắt EXTI tương ứng với Pin (vd PB1 -> EXTI1_IRQn) */
     /* Bộ đếm micro-giây mà driver dùng để đo độ rộng xung và làm watchdog.
      * Truyền vào từ tầng ứng dụng thay vì `extern htim2`: driver không được
      * biết tên biến của board.c, nếu không thì bê sang project khác là gãy. */

@@ -9,17 +9,22 @@
  * các callback trong main.c (HAL_GPIO_EXTI_Callback,
  * HAL_TIM_PeriodElapsedCallback, HAL_UART_RxCpltCallback...).
  *
- * Mức ưu tiên (số nhỏ = ưu tiên cao), đặt trong board.c và MSP:
+ * Mức ưu tiên (số nhỏ = ưu tiên cao), đặt trong MX_*_Init() và MSP của main.c:
  *      TIM2        2   watchdog/timeout của DHT11
- *      EXTI15_10   5   giải mã bit DHT11 — PHẢI cao hơn UART
+ *      EXTI1       5   giải mã bit DHT11 (PB1) — PHẢI cao hơn UART
  *      USART1      6   nhận lệnh Bluetooth
- *      EXTI0/1     7   nút NEXT/PREV chuyển trang UI
+ *      EXTI4       7   nút 1 (PA4)
+ *      EXTI9_5     7   nút 2..5 (PA5, PA6, PA7, PB8)
  *      SysTick    15   TICK_INT_PRIORITY, thấp nhất
  *
  * PR nào đụng vào ngắt phải kiểm lại bảng này còn đúng không, và số ưu tiên
  * mới có làm đảo thứ tự trên hay không.
  */
-#include "board.h"
+#include "main.h"
+
+/* Handle ngoại vi — định nghĩa trong main.c */
+extern UART_HandleTypeDef huart1;
+extern TIM_HandleTypeDef  htim2;
 
 /*==================== Nhịp hệ thống ====================*/
 
@@ -37,36 +42,43 @@ void SysTick_Handler(void)
 /*==================== Ngắt ngoại vi ====================*/
 
 /**
- * @brief Ngắt nút NEXT (PA0) — sang trang UI kế tiếp.
- *
- * PA0 nằm một mình trên line 0 nên vector này không dùng chung với ai. Xử lý
- * thực tế (chống dội phím + đổi trang) nằm trong HAL_GPIO_EXTI_Callback().
- */
-void EXTI0_IRQHandler(void)
-{
-    HAL_GPIO_EXTI_IRQHandler(BTN_NEXT_PIN);
-}
-
-/**
- * @brief Ngắt nút PREV (PA1) — quay về trang UI trước đó.
- */
-void EXTI1_IRQHandler(void)
-{
-    HAL_GPIO_EXTI_IRQHandler(BTN_PREV_PIN);
-}
-
-/**
- * @brief EXTI line 10..15 dùng chung một vector — DHT11 nằm ở PB15.
+ * @brief EXTI line 1 — DHT11 nằm ở PB1.
  *
  * HAL_GPIO_EXTI_IRQHandler() xoá cờ pending rồi gọi HAL_GPIO_EXTI_Callback()
  * (định nghĩa trong main.c) -> DHT11_CallbackEXTI().
  *
- * Chỉ khai báo đúng chân của DHT11: nếu sau này có thiết bị khác dùng line
- * 10-15 thì thêm một dòng HAL_GPIO_EXTI_IRQHandler(<pin>) ở đây.
+ * Line 1 có vector riêng, cố ý không chia sẻ với nút nào: phép đo thời gian
+ * bit của DHT11 diễn ra ngay trong ISR này.
  */
-void EXTI15_10_IRQHandler(void)
+void EXTI1_IRQHandler(void)
 {
     HAL_GPIO_EXTI_IRQHandler(DHT11_PIN);
+}
+
+/**
+ * @brief Ngắt nút 1 (PA4) — sang trang UI kế tiếp.
+ *
+ * PA4 nằm một mình trên line 4 nên vector này không dùng chung với ai. Xử lý
+ * thực tế (chống dội phím + đổi trang) nằm trong HAL_GPIO_EXTI_Callback().
+ */
+void EXTI4_IRQHandler(void)
+{
+    HAL_GPIO_EXTI_IRQHandler(BTN1_PIN);
+}
+
+/**
+ * @brief EXTI line 5..9 dùng chung một vector — nút 2 (PA5), nút 3 (PA6),
+ *        nút 4 (PA7) và nút 5 (PB8).
+ *
+ * Phải gọi cho từng chân: HAL_GPIO_EXTI_IRQHandler() chỉ xử lý đúng line
+ * tương ứng với mask truyền vào và bỏ qua nếu cờ pending chưa bật.
+ */
+void EXTI9_5_IRQHandler(void)
+{
+    HAL_GPIO_EXTI_IRQHandler(BTN2_PIN);
+    HAL_GPIO_EXTI_IRQHandler(BTN3_PIN);
+    HAL_GPIO_EXTI_IRQHandler(BTN4_PIN);
+    HAL_GPIO_EXTI_IRQHandler(BTN5_PIN);
 }
 
 /**
