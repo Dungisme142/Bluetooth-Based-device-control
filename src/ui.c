@@ -197,7 +197,7 @@ void UI_Init(I2C_HandleTypeDef *hi2c)
     SSD1306_WriteString(&ui_display, UI_TEXT_PAD_X, 32u,
                         "5 OUTPUTS  5 BUTTONS", SSD1306_COLOR_WHITE);
     SSD1306_WriteString(&ui_display, UI_TEXT_PAD_X, 46u,
-                        "PA4/PA5 = DOI TRANG", SSD1306_COLOR_WHITE);
+                        "PA5/PB1 = DOI TRANG", SSD1306_COLOR_WHITE);
     SSD1306_UpdateScreen(hi2c, &ui_display);
 }
 

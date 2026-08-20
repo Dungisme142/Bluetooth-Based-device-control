@@ -3,7 +3,7 @@
  *
  * Toàn bộ đường đi của một byte nằm trong uart.c đọc từ trên xuống:
  *
- *      ISR USART1 -> Ring_Buffer -> Text_Filting() -> Frame_Building()
+ *      ISR USART2 -> Ring_Buffer -> Text_Filting() -> Frame_Building()
  *                 -> Command_Selecting() -> UART_Print()
  *
  * Ring_Buffer giữ riêng vì là cấu trúc dữ liệu tổng quát; phần lọc ký tự và

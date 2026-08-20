@@ -8,14 +8,14 @@
  *      sysmem.c           _sbrk cho newlib
  *
  * Mọi việc còn lại gọi thẳng driver trong lib/: uart.c (nhận lệnh), DHT11.c,
- * SSD1306.c (qua ui.c), MKE_M05_RELAY.c, Ring_Buffer.c, Command_Selector.c.
+ * SSD1306.c (qua ui.c), Digital_Out.c, Ring_Buffer.c, Command_Selector.c.
  * Không có tầng trung gian nào giữa main.c và lib/.
  */
 #include "main.h"
 
 #include "Command_Selector.h"
 #include "DHT11.h"
-#include "MKE_M05_RELAY.h"
+#include "Digital_Out.h"
 #include "Ring_Buffer.h"
 #include "uart.h"
 #include "ui.h"
@@ -46,8 +46,8 @@
 
 /*==================== Handle ngoại vi ====================*/
 
-/* Không static: stm32f1xx_it.c đẩy ngắt vào huart1 và htim2 qua extern. */
-UART_HandleTypeDef huart1;
+/* Không static: stm32f1xx_it.c đẩy ngắt vào huart2 và htim2 qua extern. */
+UART_HandleTypeDef huart2;
 I2C_HandleTypeDef  hi2c1;
 TIM_HandleTypeDef  htim2;
 
@@ -60,21 +60,20 @@ static bool     bluetooth_connected;       /* true = đã nhận được byte t
 static bool     sensor_valid;              /* true = đã từng đọc DHT11 thành công */
 static uint32_t last_sensor_ok_ms;         /* Mốc tick của lần đọc thành công cuối */
 
-/* Cả 5 kênh dùng chung driver MKE_M05_RELAY: nó đã generic theo {port, pin,
- * state} nên một module relay, một con MOSFET hay một chân tín hiệu thường đều
- * lái được.
+/* Cả 5 kênh dùng chung driver Digital_Out: nó generic theo {port, pin, state}
+ * nên một con MOSFET, một opto hay một chân tín hiệu thường đều lái được.
  *
  * Thứ tự PHẢI khớp với ui_outputs[] trong src/ui.c — cùng đánh số 0..N-1. */
-static MKE_M05_RELAY_HandleTypeDef outputs[OUT_COUNT] = {
-    { OUT1_PORT, OUT1_PIN, MKE_M05_RELAY_OFF },
-    { OUT2_PORT, OUT2_PIN, MKE_M05_RELAY_OFF },
-    { OUT3_PORT, OUT3_PIN, MKE_M05_RELAY_OFF },
-    { OUT4_PORT, OUT4_PIN, MKE_M05_RELAY_OFF },
-    { OUT5_PORT, OUT5_PIN, MKE_M05_RELAY_OFF },
+static Digital_Out_HandleTypeDef outputs[OUT_COUNT] = {
+    { OUT1_PORT, OUT1_PIN, DIGITAL_OUT_OFF },
+    { OUT2_PORT, OUT2_PIN, DIGITAL_OUT_OFF },
+    { OUT3_PORT, OUT3_PIN, DIGITAL_OUT_OFF },
+    { OUT4_PORT, OUT4_PIN, DIGITAL_OUT_OFF },
+    { OUT5_PORT, OUT5_PIN, DIGITAL_OUT_OFF },
 };
 
 /* Mức logic ứng với trạng thái BẬT của từng kênh. Tách khỏi bảng handle vì
- * MKE_M05_RELAY_SetState() luôn coi ON = mức CAO; kênh nào tác động mức THẤP
+ * Digital_Out_SetState() luôn coi ON = mức CAO; kênh nào tác động mức THẤP
  * thì đảo tại đây (xem OUTn_ON_STATE trong pin_config.h). */
 static const GPIO_PinState output_on_state[OUT_COUNT] = {
     OUT1_ON_STATE, OUT2_ON_STATE, OUT3_ON_STATE, OUT4_ON_STATE, OUT5_ON_STATE,
@@ -105,7 +104,7 @@ void SystemClock_Config(void);
 void Error_Handler(void);
 
 static void MX_GPIO_Init(void);
-static void MX_USART1_UART_Init(void);
+static void MX_USART2_UART_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_TIM2_Init(void);
 
@@ -133,7 +132,7 @@ static void Command_AUTO(char *return_msg, const char *args);
 Command_HandleTypeDef Command_Menu[] = {
     { "ON",     Command_ON     },   /* Đóng một kênh, hoặc tất cả */
     { "OFF",    Command_OFF    },   /* Mở một kênh, hoặc tất cả */
-    { "STATUS", Command_STATUS },   /* Nhiệt độ, độ ẩm, relay, kết nối */
+    { "STATUS", Command_STATUS },   /* Nhiệt độ, độ ẩm, ngõ ra, kết nối */
     { "TEMP",   Command_TEMP   },   /* Chỉ nhiệt độ */
     { "HUM",    Command_HUM    },   /* Chỉ độ ẩm */
     { "AUTO",   Command_AUTO   }    /* Chế độ tự động — chưa triển khai */
@@ -158,14 +157,14 @@ int main(void)
     SystemClock_Config();
 
     MX_GPIO_Init();
-    MX_USART1_UART_Init();
+    MX_USART2_UART_Init();
     MX_I2C1_Init();
     MX_TIM2_Init();
 
     /* 5 ngõ ra. MX_GPIO_Init() đã ghi sẵn mức TẮT lên các chân này nên bước
      * chuyển sang output dưới đây không làm thiết bị nháy. */
     for (i = 0u; i < (uint8_t)OUT_COUNT; i++) {
-        if (MKE_M05_RELAY_Init(&outputs[i]) != DEV_SUCCESS) {
+        if (Digital_Out_Init(&outputs[i]) != DEV_SUCCESS) {
             Error_Handler();
         }
         Set_Output(i, false);
@@ -182,13 +181,13 @@ int main(void)
         Error_Handler();
     }
 
-    if (Developer_UART_Handler_Init(&developer_uart_handler, &huart1, &ring_buffer_handler,
+    if (Developer_UART_Handler_Init(&developer_uart_handler, &huart2, &ring_buffer_handler,
                                     uart_frame_buffer, sizeof(uint8_t),
                                     UART_FRAME_BUFFER_SIZE) != DEV_SUCCESS) {
         Error_Handler();
     }
 
-    if (HAL_UART_Receive_IT(&huart1, &uart_rx_byte, 1u) != HAL_OK) {
+    if (HAL_UART_Receive_IT(&huart2, &uart_rx_byte, 1u) != HAL_OK) {
         Error_Handler();
     }
 
@@ -267,15 +266,10 @@ static void Set_Output(uint8_t channel, bool on)
 
     /* Quy về mức logic thật của kênh rồi mới gọi driver: driver hiểu ON là mức
      * CAO, còn output_on_state[] mới là sự thật của phần cứng. */
-    MKE_M05_RELAY_SetState(&outputs[channel],
-                           (output_on_state[channel] == GPIO_PIN_SET)
-                               ? (on ? MKE_M05_RELAY_ON : MKE_M05_RELAY_OFF)
-                               : (on ? MKE_M05_RELAY_OFF : MKE_M05_RELAY_ON));
-
-    if (channel == 0u) {
-        HAL_GPIO_WritePin(STATUS_LED_PORT, STATUS_LED_PIN,
-                          on ? STATUS_LED_ON_STATE : STATUS_LED_OFF_STATE);
-    }
+    Digital_Out_SetState(&outputs[channel],
+                         (output_on_state[channel] == GPIO_PIN_SET)
+                             ? (on ? DIGITAL_OUT_ON : DIGITAL_OUT_OFF)
+                             : (on ? DIGITAL_OUT_OFF : DIGITAL_OUT_ON));
 
     (void)snprintf(label, sizeof(label), "OUT%u %s",
                    (unsigned)(channel + 1u), on ? "ON" : "OFF");
@@ -304,7 +298,7 @@ static void Format_Status(char *out, size_t out_size)
     }
     map[OUT_COUNT] = '\0';
 
-    (void)snprintf(out, out_size, "TEMP=%uC HUM=%u%% RELAY=%s BT=%s OUT=%s\r\n",
+    (void)snprintf(out, out_size, "TEMP=%uC HUM=%u%% OUT1=%s BT=%s OUT=%s\r\n",
                    (unsigned)last_temp,
                    (unsigned)last_humidity,
                    output_on[0] ? "ON" : "OFF",
@@ -423,7 +417,7 @@ static void Fill_UI_Data(UI_Data_t *out)
  * @brief Thân chung của ON và OFF — chỉ khác nhau đúng một tham số `on`.
  *
  * Cú pháp tham số:
- *      (không có)  kênh 1, đúng như hành vi cũ khi mới có mỗi relay. Giữ
+ *      (không có)  kênh 1, đúng như hành vi cũ khi mới có mỗi một ngõ ra. Giữ
  *                  nguyên để các app điện thoại đã cấu hình sẵn không phải sửa.
  *      "ALL"       cả OUT_COUNT kênh
  *      "1".."5"    một kênh
@@ -435,7 +429,7 @@ static void Command_SetOutputs(char *return_msg, const char *args, bool on)
 
     if (args == NULL) {
         Set_Output(0u, on);
-        (void)snprintf(return_msg, COMMAND_RETURN_MSG_SIZE, "RELAY_%s\r\n", state_text);
+        (void)snprintf(return_msg, COMMAND_RETURN_MSG_SIZE, "OUT1_%s\r\n", state_text);
         return;
     }
 
@@ -500,8 +494,9 @@ static void Command_AUTO(char *return_msg, const char *args)
  * SYSCLK = 72 MHz: HSE 8 MHz (thạch anh trên Blue Pill) -> PLL x9.
  *
  *   HCLK  = 72 MHz (AHB  /1)
- *   PCLK2 = 72 MHz (APB2 /1) — USART1
- *   PCLK1 = 36 MHz (APB1 /2) — TRẦN CỨNG của APB1, không được để /1
+ *   PCLK2 = 72 MHz (APB2 /1)
+ *   PCLK1 = 36 MHz (APB1 /2) — TRẦN CỨNG của APB1, không được để /1. USART2
+ *                              lấy clock từ đây; HAL tự tính BRR nên baud vẫn đúng
  *   TIM2  = 72 MHz (APB1 prescaler != 1 nên clock timer = 2 x PCLK1)
  *
  * FLASH_LATENCY_2 là bắt buộc cho dải 48-72 MHz (RM0008 §3.3.3). Đặt sai
@@ -545,25 +540,27 @@ static void MX_GPIO_Init(void)
 {
     GPIO_InitTypeDef gpio_init = {0};
 
-    /* GPIOB là BẮT BUỘC: relay (PB12), DHT11 (PB1), I2C1 (PB6/PB7), LED (PB13), nút 5 (PB8).
-     * Thiếu clock này thì các chân port B không phản hồi gì cả. */
+    /* GPIOA: UART BT (PA2/PA3), DHT11 (PA4), 3 nút (PA5..PA7), OUT-1 (PA8).
+     * GPIOB: 2 nút (PB0/PB1), I2C1 (PB6/PB7), OUT-2..OUT-5 (PB12..PB15).
+     * GPIOC: LED heartbeat onboard (PC13).
+     * Thiếu clock của port nào thì các chân port đó không phản hồi gì cả. */
     __HAL_RCC_GPIOA_CLK_ENABLE();
     __HAL_RCC_GPIOB_CLK_ENABLE();
     __HAL_RCC_GPIOC_CLK_ENABLE();
 
     /* Ghi mức TẮT trước khi init để LED active-low không chớp lúc boot */
     HAL_GPIO_WritePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN, HEARTBEAT_LED_OFF_STATE);
-    HAL_GPIO_WritePin(STATUS_LED_PORT, STATUS_LED_PIN, STATUS_LED_OFF_STATE);
 
     /* Cùng lý do với LED, nhưng hậu quả nặng hơn: các chân này lái relay và
      * thiết bị thật. Sau reset chúng là input floating, và ODR có thể còn giữ
-     * mức của lần chạy trước — cấu hình thành output trước khi ghi mức sẽ đóng
-     * relay trong vài chu kỳ. Ghi mức TẮT ngay bây giờ để lúc
-     * MKE_M05_RELAY_Init() chuyển chân sang output thì nó đã sẵn ở mức an toàn.
+     * mức của lần chạy trước — cấu hình thành output trước khi ghi mức sẽ bật
+     * thiết bị trong vài chu kỳ. Ghi mức TẮT ngay bây giờ để lúc
+     * Digital_Out_Init() chuyển chân sang output thì nó đã sẵn ở mức an toàn.
      *
-     * Cả 5 kênh đều nằm trên GPIOB nên một lệnh ghi là đủ. Lệnh này giả định
-     * mọi kênh có OUTn_ON_STATE = GPIO_PIN_SET; nếu sau này lắp module tác động
-     * mức THẤP thì kênh đó phải ghi riêng ở đây. */
+     * OUT-1 nằm trên GPIOA, bốn kênh còn lại trên GPIOB nên phải hai lệnh ghi.
+     * Cả hai giả định mọi kênh có OUTn_ON_STATE = GPIO_PIN_SET; nếu sau này gắn
+     * tầng ngoài tác động mức THẤP thì kênh đó phải ghi riêng ở đây. */
+    HAL_GPIO_WritePin(GPIOA, OUT_GPIOA_PINS, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(GPIOB, OUT_GPIOB_PINS, GPIO_PIN_RESET);
 
     /* PC13 — LED heartbeat onboard (active LOW) */
@@ -573,14 +570,7 @@ static void MX_GPIO_Init(void)
     gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(HEARTBEAT_LED_PORT, &gpio_init);
 
-    /* PB13 — LED chỉ báo trạng thái (active LOW) */
-    gpio_init.Pin = STATUS_LED_PIN;
-    gpio_init.Mode = GPIO_MODE_OUTPUT_PP;
-    gpio_init.Pull = GPIO_NOPULL;
-    gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(STATUS_LED_PORT, &gpio_init);
-
-    /* PA4..PA7 và PB8 — 5 nút nhấn. Pull-up nội, nút kéo xuống GND nên mức
+    /* PA5..PA7 và PB0/PB1 — 5 nút nhấn. Pull-up nội, nút kéo xuống GND nên mức
      * nghỉ là CAO. Không cần điện trở ngoài.
      *
      * Bắt CẢ HAI cạnh chứ không chỉ cạnh xuống: việc chống dội phím trong ui.c
@@ -597,34 +587,36 @@ static void MX_GPIO_Init(void)
 
     /* Ưu tiên ngắt: EXTI của DHT11 PHẢI cao hơn UART (số nhỏ hơn = ưu tiên cao).
      * DHT11 lấy timestamp ngay trong ISR, các bit chỉ cách nhau 77-124 us.
-     * Ưu tiên của USART1 đặt trong HAL_UART_MspInit(). */
+     * Ưu tiên của USART2 đặt trong HAL_UART_MspInit(). */
     HAL_NVIC_SetPriority(DHT11_EXTI_IRQn, DHT11_EXTI_PRIO, 0);
 
     /* Nút nhấn: ưu tiên thấp nhất trong các ngắt của app. Bật ngay ở đây vì
-     * không driver nào "sở hữu" chúng như DHT11 sở hữu PB1.
-     * PA4 đứng riêng trên EXTI4; PA5/PA6/PA7/PB8 dùng chung EXTI9_5. */
-    HAL_NVIC_SetPriority(BTN1_EXTI_IRQn, BTN_EXTI_PRIO, 0);
-    HAL_NVIC_EnableIRQ(BTN1_EXTI_IRQn);
+     * không driver nào "sở hữu" chúng như DHT11 sở hữu PA4.
+     * PA5/PA6/PA7 dùng chung EXTI9_5; PB0 -> EXTI0; PB1 -> EXTI1. */
     HAL_NVIC_SetPriority(EXTI9_5_IRQn, BTN_EXTI_PRIO, 0);
     HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+    HAL_NVIC_SetPriority(BTN4_EXTI_IRQn, BTN_EXTI_PRIO, 0);
+    HAL_NVIC_EnableIRQ(BTN4_EXTI_IRQn);
+    HAL_NVIC_SetPriority(BTN5_EXTI_IRQn, BTN_EXTI_PRIO, 0);
+    HAL_NVIC_EnableIRQ(BTN5_EXTI_IRQn);
 
-    /* 5 chân ngõ ra (PB12/PB14/PB15/PB10/PB11) và PB1 (DHT11) cố tình KHÔNG
-     * cấu hình ở đây: MKE_M05_RELAY_Init() và DHT11_Init() tự lo, vì chân DHT11
-     * phải đổi qua lại giữa output OD và input EXTI lúc chạy. */
+    /* 5 chân ngõ ra (PA8/PB12..PB15) và PA4 (DHT11) cố tình KHÔNG cấu hình ở
+     * đây: Digital_Out_Init() và DHT11_Init() tự lo, vì chân DHT11 phải đổi
+     * qua lại giữa output OD và input EXTI lúc chạy. */
 }
 
-static void MX_USART1_UART_Init(void)
+static void MX_USART2_UART_Init(void)
 {
-    huart1.Instance = USART1;
-    huart1.Init.BaudRate = BT_UART_BAUDRATE;    /* 9600 — mặc định của MKE-M15 */
-    huart1.Init.WordLength = UART_WORDLENGTH_8B;
-    huart1.Init.StopBits = UART_STOPBITS_1;
-    huart1.Init.Parity = UART_PARITY_NONE;
-    huart1.Init.Mode = UART_MODE_TX_RX;
-    huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-    huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+    huart2.Instance = BT_UART_INSTANCE;
+    huart2.Init.BaudRate = BT_UART_BAUDRATE;    /* 9600 — mặc định của MKE-M15 */
+    huart2.Init.WordLength = UART_WORDLENGTH_8B;
+    huart2.Init.StopBits = UART_STOPBITS_1;
+    huart2.Init.Parity = UART_PARITY_NONE;
+    huart2.Init.Mode = UART_MODE_TX_RX;
+    huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+    huart2.Init.OverSampling = UART_OVERSAMPLING_16;
 
-    if (HAL_UART_Init(&huart1) != HAL_OK) {
+    if (HAL_UART_Init(&huart2) != HAL_OK) {
         Error_Handler();
     }
 }
@@ -700,16 +692,16 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
 {
     GPIO_InitTypeDef gpio_init = {0};
 
-    if (huart->Instance == USART1) {
+    if (huart->Instance == BT_UART_INSTANCE) {
         __HAL_RCC_GPIOA_CLK_ENABLE();
-        __HAL_RCC_USART1_CLK_ENABLE();
+        __HAL_RCC_USART2_CLK_ENABLE();
 
         gpio_init.Pin = BT_UART_TX_PIN;
         gpio_init.Mode = GPIO_MODE_AF_PP;
         gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
         HAL_GPIO_Init(BT_UART_TX_PORT, &gpio_init);
 
-        /* PA10 = RX — PULL-UP cố ý: module chưa cấp nguồn / đứt dây thì chân
+        /* PA3 = RX — PULL-UP cố ý: module chưa cấp nguồn / đứt dây thì chân
          * thả nổi sẽ nhặt nhiễu và báo framing error liên tục. */
         gpio_init.Pin = BT_UART_RX_PIN;
         gpio_init.Mode = GPIO_MODE_INPUT;
@@ -724,8 +716,8 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
 
 void HAL_UART_MspDeInit(UART_HandleTypeDef *huart)
 {
-    if (huart->Instance == USART1) {
-        __HAL_RCC_USART1_CLK_DISABLE();
+    if (huart->Instance == BT_UART_INSTANCE) {
+        __HAL_RCC_USART2_CLK_DISABLE();
         HAL_GPIO_DeInit(BT_UART_TX_PORT, BT_UART_TX_PIN);
         HAL_GPIO_DeInit(BT_UART_RX_PORT, BT_UART_RX_PIN);
         HAL_NVIC_DisableIRQ(BT_UART_IRQn);
@@ -760,7 +752,7 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef *hi2c)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-    if (huart->Instance == USART1) {
+    if (huart->Instance == BT_UART_INSTANCE) {
         if (Ring_Buffer_Write_SingleData(&ring_buffer_handler, &uart_rx_byte) == DEV_SUCCESS) {
             bluetooth_connected = true;
             developer_uart_handler.last_received_tick = HAL_GetTick();
@@ -768,12 +760,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
         }
 
         /* Mở lại phiên nhận kể cả khi bộ đệm đầy: bỏ một byte còn hơn ngừng nhận. */
-        (void)HAL_UART_Receive_IT(&huart1, &uart_rx_byte, 1u);
+        (void)HAL_UART_Receive_IT(&huart2, &uart_rx_byte, 1u);
     }
 }
 
 /**
- * @brief Khởi động lại việc nhận sau khi USART1 gặp lỗi.
+ * @brief Khởi động lại việc nhận sau khi USART2 gặp lỗi.
  *
  * Khi bị tràn (ORE) — dễ xảy ra vì ISR của DHT11 có thể chiếm CPU lâu hơn một
  * khung 9600 baud — HAL báo lỗi và HUỶ luôn phiên Receive_IT. Không bắt lại ở
@@ -782,17 +774,17 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
  */
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 {
-    if (huart->Instance == USART1) {
+    if (huart->Instance == BT_UART_INSTANCE) {
         /* Đọc SR rồi DR là trình tự xoá cờ ORE trên F1; HAL_UART_IRQHandler đã
          * đọc SR, đọc nốt DR để chắc chắn cờ được xoá và bỏ byte hỏng đi. */
-        (void)huart1.Instance->DR;
+        (void)huart2.Instance->DR;
 
-        (void)HAL_UART_Receive_IT(&huart1, &uart_rx_byte, 1u);
+        (void)HAL_UART_Receive_IT(&huart2, &uart_rx_byte, 1u);
     }
 }
 
 /**
- * @brief Điểm đến chung của mọi ngắt EXTI (DHT11 trên PB1, 5 nút PA4..PA7 + PB8).
+ * @brief Điểm đến chung của mọi ngắt EXTI (DHT11 trên PA4, 5 nút PA5..PA7 + PB0/PB1).
  *
  * Thử nút trước vì UI_HandleButtonIrq() trả về ngay khi chân không phải của nó;
  * chân nào không ai nhận thì bỏ qua.
