@@ -11,26 +11,26 @@ Mọi pin/port/IRQn phải khai báo ở đó; driver không được hardcode. 
 | **PA2** | USART2_TX → MKE-M15 RX | AF Push-Pull, HIGH speed | — | Baud 9600 |
 | **PA3** | USART2_RX ← MKE-M15 TX | Input | **PULLUP** | Pull-up cố ý, chống nhiễu khi module chưa cấp nguồn |
 | **PA4** | DHT11 DATA | Đổi qua lại: Output-OD ↔ Input EXTI falling | PULLUP khi input | `EXTI4_IRQn` — vector riêng, không chia với nút nào |
-| **PA5** | Nút **NEXT** | Input EXTI both edges | PULLUP | `EXTI9_5_IRQn` |
-| **PA6** | Nút **DOWN** | Input EXTI both edges | PULLUP | `EXTI9_5_IRQn` |
+| **PA5** | Nút **UP** | Input EXTI both edges | PULLUP | `EXTI9_5_IRQn` |
+| **PA6** | Nút **PREV** | Input EXTI both edges | PULLUP | `EXTI9_5_IRQn` |
 | **PA7** | Nút **OK** | Input EXTI both edges | PULLUP | `EXTI9_5_IRQn` |
 | **PA8** | **OUT-1** | Output Push-Pull | NOPULL | Kênh duy nhất nằm trên GPIOA |
 | **PA13** | SWDIO | — | — | Dành riêng cho nạp/debug |
 | **PA14** | SWCLK | — | — | Dành riêng cho nạp/debug |
-| **PB0** | Nút **UP** | Input EXTI both edges | PULLUP | `EXTI0_IRQn` |
-| **PB1** | Nút **PREV** | Input EXTI both edges | PULLUP | `EXTI1_IRQn` |
-| **PB6** | I2C1_SCL → OLED | AF Open-Drain, HIGH speed | — | 400 kHz |
-| **PB7** | I2C1_SDA → OLED | AF Open-Drain, HIGH speed | — | 400 kHz |
+| **PB0** | Nút **DOWN** | Input EXTI both edges | PULLUP | `EXTI0_IRQn` |
+| **PB1** | Nút **NEXT** | Input EXTI both edges | PULLUP | `EXTI1_IRQn` |
+| **PB10** | I2C2_SCL → OLED | AF Open-Drain, HIGH speed | — | 400 kHz |
+| **PB11** | I2C2_SDA → OLED | AF Open-Drain, HIGH speed | — | 400 kHz |
 | **PB12** | **OUT-5** | Output Push-Pull | NOPULL | |
-| **PB13** | **OUT-4** | Output Push-Pull | NOPULL | Trước đây là LED chỉ báo, nay là kênh ngõ ra |
+| **PB13** | **OUT-4** | Output Push-Pull | NOPULL | |
 | **PB14** | **OUT-3** | Output Push-Pull | NOPULL | |
 | **PB15** | **OUT-2** | Output Push-Pull | NOPULL | |
 | **PC13** | LED nhịp tim (onboard) | Output Push-Pull, LOW speed | NOPULL | **Active LOW** |
 
 ### Chân còn trống
 
-`PA0`, `PA1`, `PA9`, `PA10`, `PA11`, `PA12`, `PA15`, `PB3`, `PB4`, `PB5`, `PB8`, `PB9`,
-`PB10`, `PB11`.
+`PA0`, `PA1`, `PA9`, `PA10`, `PA11`, `PA12`, `PA15`, `PB3`, `PB4`, `PB5`, `PB6`, `PB7`,
+`PB8`, `PB9`.
 
 `PA15` / `PB3` / `PB4` chỉ dùng được nhờ `__HAL_AFIO_REMAP_SWJ_NOJTAG()` trong
 `HAL_MspInit()` (`main.c:688`) — lệnh này giải phóng chân JTAG nhưng **giữ nguyên SWD**.
@@ -41,7 +41,7 @@ Mọi pin/port/IRQn phải khai báo ở đó; driver không được hardcode. 
 |---|---|---|
 | **RCC** | HSE 8 MHz → PLL ×9 → SYSCLK **72 MHz**<br/>AHB /1 → HCLK 72 MHz<br/>APB1 /2 → PCLK1 **36 MHz**<br/>APB2 /1 → PCLK2 72 MHz<br/>`FLASH_LATENCY_2` | Toàn hệ thống |
 | **USART2** | 9600 baud, 8 bit, no parity, 1 stop, không flow control, oversampling 16, chế độ TX+RX theo ngắt | Bluetooth |
-| **I2C1** | 400 kHz Fast-mode, DutyCycle 2, địa chỉ 7 bit, blocking (không ngắt, không DMA) | OLED |
+| **I2C2** | 400 kHz Fast-mode, DutyCycle 2, địa chỉ 7 bit, blocking (không ngắt, không DMA) | OLED |
 | **TIM2** | Bộ đếm tự do 1 MHz (1 tick = 1 µs), Period 65535, prescaler tính từ clock thực tế | Đồng hồ µs + watchdog cho DHT11 |
 | **EXTI** | Line 4 (DHT11), line 0/1 và 5–9 (nút bấm) | Ngắt ngoài |
 | **AFIO** | `SWJ_NOJTAG` | Giải phóng PA15/PB3/PB4 |
@@ -67,8 +67,8 @@ Số **nhỏ hơn** = ưu tiên **cao hơn**.
 | `EXTI4_IRQn` | **5** | Sườn xuống trên bus DHT11 | Giải mã bit bằng cách **đo thời gian ngay trong ISR**; các bit chỉ cách nhau 77–124 µs. Trễ vài chục µs là đọc sai bit |
 | `USART2_IRQn` | **6** | Nhận/phát byte Bluetooth | Phải **thấp hơn** DHT11. Ở 9600 baud một byte mất ~1 ms — chậm vài chục µs không sao. Bị chèn nhiều thì sinh lỗi tràn ORE, và `HAL_UART_ErrorCallback()` đã xử lý |
 | `EXTI9_5_IRQn` | **7** | Nút PA5, PA6, PA7 | Thấp nhất: ISR chỉ đặt một cờ vào hàng đợi, hoãn vài chục µs người dùng không cảm nhận được |
-| `EXTI0_IRQn` | **7** | Nút PB0 | như trên |
-| `EXTI1_IRQn` | **7** | Nút PB1 | như trên |
+| `EXTI0_IRQn` | **7** | Nút PB0 (DOWN) | như trên |
+| `EXTI1_IRQn` | **7** | Nút PB1 (NEXT) | như trên |
 | `SysTick` | 15 | `HAL_GetTick()` | Mặc định của HAL, thấp nhất toàn hệ thống |
 
 **Ràng buộc bất biến**: `TIM2 < EXTI4(DHT11) < USART2 < EXTI(nút)`. Đảo thứ tự này sẽ làm
@@ -89,9 +89,9 @@ Bảng handler nằm ở [`stm-firmware/src/stm32f1xx_it.c`](../stm-firmware/src
 |---|---|---|
 | `SysTick_Handler` | `HAL_IncTick()` | Cập nhật `HAL_GetTick()` |
 | `EXTI4_IRQHandler` | `HAL_GPIO_EXTI_Callback(PA4)` → `DHT11_CallbackEXTI()` | Giải mã một bit |
-| `EXTI0_IRQHandler` | `HAL_GPIO_EXTI_Callback(PB0)` → `UI_HandleButtonIrq()` | Sự kiện nút UP |
-| `EXTI1_IRQHandler` | `HAL_GPIO_EXTI_Callback(PB1)` → `UI_HandleButtonIrq()` | Sự kiện nút PREV |
-| `EXTI9_5_IRQHandler` | Gọi riêng cho PA5, PA6, PA7 | Sự kiện NEXT / DOWN / OK |
+| `EXTI0_IRQHandler` | `HAL_GPIO_EXTI_Callback(PB0)` → `UI_HandleButtonIrq()` | Sự kiện nút DOWN |
+| `EXTI1_IRQHandler` | `HAL_GPIO_EXTI_Callback(PB1)` → `UI_HandleButtonIrq()` | Sự kiện nút NEXT |
+| `EXTI9_5_IRQHandler` | Gọi riêng cho PA5, PA6, PA7 | Sự kiện UP / PREV / OK |
 | `USART2_IRQHandler` | `HAL_UART_IRQHandler()` → `HAL_UART_RxCpltCallback()` | Đẩy 1 byte vào ring buffer |
 | `TIM2_IRQHandler` | `HAL_TIM_IRQHandler()` → `DHT11_CallbackTIM2()` | Chuyển pha FSM / watchdog |
 
@@ -109,12 +109,12 @@ Thứ tự trong `main()` (`main.c:156-195`) không được đảo:
 3.  MX_GPIO_Init()                ─ bật clock GPIOA/B/C, ghi mức TẮT lên 5 chân ngõ ra,
                                     cấu hình nút + LED, đặt ưu tiên EXTI
 4.  MX_USART2_UART_Init()         ─ kéo theo HAL_UART_MspInit(): chân AF + NVIC USART2
-5.  MX_I2C1_Init()                ─ kéo theo HAL_I2C_MspInit(): PB6/PB7 AF-OD
+5.  MX_I2C2_Init()                ─ kéo theo HAL_I2C_MspInit(): PB10/PB11 AF-OD
 6.  MX_TIM2_Init()                ─ 1 MHz, bật NVIC TIM2
 7.  Digital_Out_Init() × 5        ─ chuyển 5 chân sang output (mức đã an toàn từ bước 3)
     + Set_Output(i, false)
 8.  DHT11_Init()                  ─ cần htim2 đã sẵn sàng từ bước 6
-9.  UI_Init()                     ─ cần hi2c1 đã sẵn sàng từ bước 5
+9.  UI_Init()                     ─ cần hi2c2 đã sẵn sàng từ bước 5
 10. Ring_Buffer_Init()
 11. Developer_UART_Handler_Init()
 12. HAL_UART_Receive_IT()         ─ mở phiên nhận byte đầu tiên

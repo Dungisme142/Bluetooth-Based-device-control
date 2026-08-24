@@ -85,7 +85,7 @@
 #define OUT_COUNT 5U
 
 /*---------------- NÚT NHẤN ----------------*/
-/* 5 nút theo schematic: PA5 = NEXT, PA6 = DOWN, PA7 = OK, PB0 = UP, PB1 = PREV.
+/* 5 nút theo schematic: PA5 = UP, PA6 = PREV, PA7 = OK, PB0 = DOWN, PB1 = NEXT.
  * Tất cả nối xuống GND, dùng pull-up nội -> mức nghỉ là HIGH.
  *
  * Phân bố vector: PA5/PA6/PA7 -> EXTI9_5_IRQn (dùng chung); PB0 -> EXTI0_IRQn;
@@ -118,25 +118,25 @@
 
 /* Vai trò UI của từng nút. Tầng UI chỉ nói tới các tên _NEXT/_PREV/_UP/_DOWN/_OK,
  * đổi dây chỉ cần đổi bí danh ở đây. */
-#define BTN_NEXT_PORT      BTN1_PORT
-#define BTN_NEXT_PIN       BTN1_PIN
-#define BTN_NEXT_EXTI_IRQn BTN1_EXTI_IRQn
+#define BTN_UP_PORT        BTN1_PORT
+#define BTN_UP_PIN         BTN1_PIN
+#define BTN_UP_EXTI_IRQn   BTN1_EXTI_IRQn
 
-#define BTN_DOWN_PORT      BTN2_PORT
-#define BTN_DOWN_PIN       BTN2_PIN
-#define BTN_DOWN_EXTI_IRQn BTN2_EXTI_IRQn
+#define BTN_PREV_PORT      BTN2_PORT
+#define BTN_PREV_PIN       BTN2_PIN
+#define BTN_PREV_EXTI_IRQn BTN2_EXTI_IRQn
 
 #define BTN_OK_PORT        BTN3_PORT
 #define BTN_OK_PIN         BTN3_PIN
 #define BTN_OK_EXTI_IRQn   BTN3_EXTI_IRQn
 
-#define BTN_UP_PORT        BTN4_PORT
-#define BTN_UP_PIN         BTN4_PIN
-#define BTN_UP_EXTI_IRQn   BTN4_EXTI_IRQn
+#define BTN_DOWN_PORT      BTN4_PORT
+#define BTN_DOWN_PIN       BTN4_PIN
+#define BTN_DOWN_EXTI_IRQn BTN4_EXTI_IRQn
 
-#define BTN_PREV_PORT      BTN5_PORT
-#define BTN_PREV_PIN       BTN5_PIN
-#define BTN_PREV_EXTI_IRQn BTN5_EXTI_IRQn
+#define BTN_NEXT_PORT      BTN5_PORT
+#define BTN_NEXT_PIN       BTN5_PIN
+#define BTN_NEXT_EXTI_IRQn BTN5_EXTI_IRQn
 
 /* Thấp hơn (số lớn hơn) cả DHT11 lẫn UART: ISR của nút chỉ đặt một cờ, hoãn
  * vài chục micro-giây không ảnh hưởng gì. */
@@ -154,20 +154,24 @@
  * chạm — nhấn rồi nhả nhanh hơn thế thì lần nhả sẽ bị bỏ qua. */
 #define BTN_DEBOUNCE_MS 25U
 
-/*---------------- I2C1 → OLED SSD1306 ----------------*/
-/* PB6 = SCL1, PB7 = SDA1 (không đổi so với schematic cũ) */
-#define I2C1_SCL_PORT    GPIOB
-#define I2C1_SCL_PIN     GPIO_PIN_6
-#define I2C1_SDA_PORT    GPIOB
-#define I2C1_SDA_PIN     GPIO_PIN_7
-#define I2C1_CLOCK_SPEED 400000U /* Fast mode */
+/*---------------- I2C2 → OLED SSD1306 ----------------*/
+/* PB10 = SCL2, PB11 = SDA2 theo schematic.
+ *
+ * Đây là vị trí mặc định của I2C2 nên KHÔNG cần remap — I2C2 trên F103 không
+ * có phương án remap nào khác. I2C2 nằm trên APB1 (PCLK1 = 36 MHz); HAL tự
+ * tính CCR từ PCLK1 nên tốc độ bus đúng 400 kHz. */
+#define I2C2_SCL_PORT    GPIOB
+#define I2C2_SCL_PIN     GPIO_PIN_10
+#define I2C2_SDA_PORT    GPIOB
+#define I2C2_SDA_PIN     GPIO_PIN_11
+#define I2C2_CLOCK_SPEED 400000U /* Fast mode */
 
 /*---------------- USART2 → Bluetooth MKE-M15 ----------------*/
-/* PA2 = TX2, PA3 = RX2 theo schematic (trước đây là USART1 trên PA9/PA10).
+/* PA2 = TX2, PA3 = RX2 theo schematic.
  * RX để PULL-UP cố ý — xem PIN_MAP.md §6.
  *
- * USART2 nằm trên APB1 (PCLK1 = 36 MHz) chứ không phải APB2 như USART1;
- * HAL tự tính lại thanh ghi BRR từ PCLK1 nên baud vẫn đúng 9600. */
+ * USART2 nằm trên APB1 (PCLK1 = 36 MHz), không phải APB2; HAL tự tính thanh
+ * ghi BRR từ PCLK1 nên baud đúng 9600. */
 #define BT_UART_INSTANCE USART2
 #define BT_UART_TX_PORT  GPIOA
 #define BT_UART_TX_PIN   GPIO_PIN_2

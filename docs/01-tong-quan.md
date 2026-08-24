@@ -19,7 +19,7 @@ môi trường để làm cơ sở cho chế độ tự động về sau.
   │ App SPP   │  Bluetooth │  MKE-M15  ──► USART2 │  OUT-1..5│ Module công suất │
   │ terminal  │◄──────────►│                      ├─────────►│ (relay / SSR /   │
   └───────────┘   9600 8N1 │  DHT11    ──► EXTI4  │  3.3V TTL│  MOSFET) ─► tải  │
-                           │  OLED     ◄── I2C1   │          └──────────────────┘
+                           │  OLED     ◄── I2C2   │          └──────────────────┘
    5 nút bấm ─────────────►│  5 nút    ──► EXTI   │
                            └──────────────────────┘
 ```

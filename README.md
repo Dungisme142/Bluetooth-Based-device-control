@@ -62,11 +62,11 @@ Sơ đồ nguyên lý: [`docs/images/schematic.pdf`](docs/images/schematic.pdf)
 |---|---|---|---|
 | PA2 / PA3 | USART2 ↔ MKE-M15 | PA8 | OUT-1 |
 | PA4 | DHT11 DATA | PB15 | OUT-2 |
-| PA5 | Nút NEXT | PB14 | OUT-3 |
-| PA6 | Nút DOWN | PB13 | OUT-4 |
+| PA5 | Nút UP | PB14 | OUT-3 |
+| PA6 | Nút PREV | PB13 | OUT-4 |
 | PA7 | Nút OK | PB12 | OUT-5 |
-| PB0 | Nút UP | PB6 / PB7 | I2C1 → OLED |
-| PB1 | Nút PREV | PC13 | LED nhịp tim |
+| PB0 | Nút DOWN | PB10 / PB11 | I2C2 → OLED |
+| PB1 | Nút NEXT | PC13 | LED nhịp tim |
 
 Nguồn sự thật là [`stm-firmware/lib/Inc/pin_config.h`](stm-firmware/lib/Inc/pin_config.h) —
 mọi pin/port/IRQn khai báo ở đúng một chỗ đó.
