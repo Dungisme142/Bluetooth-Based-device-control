@@ -36,9 +36,8 @@ HAL_StatusTypeDef SSD1306_Init (I2C_HandleTypeDef* hi2c) {
 		0xAF		// Display ON <-- lệnh quan trọng nhất để "bật màn hình"
 	};
 	// Gửi các lệnh khởi tạo đến SSD1306 qua I2C
-	HAL_I2C_Master_Transmit (hi2c, SSD1306_I2C_ADDRESS, ssd1306_init_cmds,
+	return HAL_I2C_Master_Transmit (hi2c, SSD1306_I2C_ADDRESS, ssd1306_init_cmds,
 	sizeof (ssd1306_init_cmds), HAL_MAX_DELAY);
-	return HAL_OK; // Khởi tạo thành công
 }
 
 /** @brief Gửi 1 byte lệnh tới chip (xem SSD1306.h). */
@@ -49,12 +48,10 @@ HAL_StatusTypeDef SSD1306_SendCommand (I2C_HandleTypeDef* hi2c, uint8_t command)
 
 /** @brief Gửi khối dữ liệu pixel tới GDDRAM (xem SSD1306.h). */
 HAL_StatusTypeDef SSD1306_SendData (I2C_HandleTypeDef* hi2c, uint8_t* data, size_t size) {
-	// Set command byte to 0x40 for data transfer
-	if (HAL_I2C_Mem_Write (hi2c, SSD1306_DEFAULT_ADDRESS, 0x40,
-		I2C_MEMADD_SIZE_8BIT, data, size, HAL_MAX_DELAY) != HAL_OK) {
-		return HAL_ERROR;
-	}
-	return HAL_OK;
+	// Control byte 0x40 đóng vai trò "địa chỉ thanh ghi": HAL tự chèn nó vào
+	// trước khối dữ liệu, báo cho chip biết các byte sau là dữ liệu GDDRAM.
+	return HAL_I2C_Mem_Write (hi2c, SSD1306_I2C_ADDRESS, 0x40,
+	I2C_MEMADD_SIZE_8BIT, data, size, HAL_MAX_DELAY);
 }
 
 /* =======================================================================
@@ -64,51 +61,36 @@ HAL_StatusTypeDef SSD1306_SendData (I2C_HandleTypeDef* hi2c, uint8_t* data, size
 /* ---------------- Điều khiển display (không đụng buffer) ---------------- */
 /** @brief Bật display (xem SSD1306.h). */
 HAL_StatusTypeDef SSD1306_DisplayOn (I2C_HandleTypeDef* hi2c) {
-	// TODO: gửi lệnh SSD1306_DISPLAYON qua SSD1306_SendCommand()
-	if (SSD1306_SendCommand (hi2c, SSD1306_DISPLAYON))
-		return HAL_OK;
-	return HAL_ERROR;
+	return SSD1306_SendCommand (hi2c, SSD1306_DISPLAYON);
 }
 
 /** @brief Tắt display (xem SSD1306.h). */
 HAL_StatusTypeDef SSD1306_DisplayOff (I2C_HandleTypeDef* hi2c) {
-	if (SSD1306_SendCommand (hi2c, SSD1306_DISPLAYOFF))
-		return HAL_OK;
-	return HAL_ERROR;
+	return SSD1306_SendCommand (hi2c, SSD1306_DISPLAYOFF);
 }
 
 /** @brief Đặt độ tương phản (xem SSD1306.h). */
 HAL_StatusTypeDef SSD1306_SetContrast (I2C_HandleTypeDef* hi2c, uint8_t value) {
-	// TODO: đây là lệnh 2 byte: gửi SSD1306_SETCONTRAST rồi gửi tiếp `value`
-	// (2 lần gọi SSD1306_SendCommand, hoặc tự build mảng 2 command byte).
-	if (SSD1306_SendCommand (hi2c, SSD1306_SETCONTRAST))
-		return HAL_OK;
-	if (SSD1306_SendCommand (hi2c, value))
-		return HAL_OK;
-	return HAL_ERROR;
+	// Lệnh 2 byte: mã lệnh rồi tới giá trị contrast.
+	if (SSD1306_SendCommand (hi2c, SSD1306_SETCONTRAST) != HAL_OK)
+		return HAL_ERROR;
+	return SSD1306_SendCommand (hi2c, value);
 }
 
 /** @brief Đảo màu toàn màn hình (xem SSD1306.h). */
 HAL_StatusTypeDef SSD1306_InvertDisplay (I2C_HandleTypeDef* hi2c, uint8_t invert) {
-	if (SSD1306_SendCommand (hi2c, invert ? SSD1306_INVERTDISPLAY : SSD1306_NORMALDISPLAY))
-		return HAL_OK;
-	return HAL_ERROR;
+	return SSD1306_SendCommand (
+	hi2c, invert ? SSD1306_INVERTDISPLAY : SSD1306_NORMALDISPLAY);
 }
 
 /** @brief Đặt con trỏ ghi GDDRAM (xem SSD1306.h). */
 HAL_StatusTypeDef SSD1306_SetCursor (I2C_HandleTypeDef* hi2c, uint8_t x, uint8_t page) {
-	// TODO (page addressing mode): gửi 3 lệnh liên tiếp:
-	//   SSD1306_SETPAGE | page
-	//   SSD1306_SETLOWCOLUMN  | (x & 0x0F)
-	//   SSD1306_SETHIGHCOLUMN | (x >> 4)
-
-	if (SSD1306_SendCommand (hi2c, SSD1306_SETPAGE | page))
-		return HAL_OK;
-	if (SSD1306_SendCommand (hi2c, SSD1306_SETLOWCOLUMN | (x & 0x0F)))
-		return HAL_OK;
-	if (SSD1306_SendCommand (hi2c, SSD1306_SETHIGHCOLUMN | (x >> 4)))
-		return HAL_OK;
-	return HAL_ERROR;
+	// Page addressing mode: 3 lệnh liên tiếp, cột 7-bit tách làm nửa thấp/cao.
+	if (SSD1306_SendCommand (hi2c, SSD1306_SETPAGE | page) != HAL_OK)
+		return HAL_ERROR;
+	if (SSD1306_SendCommand (hi2c, SSD1306_SETLOWCOLUMN | (x & 0x0F)) != HAL_OK)
+		return HAL_ERROR;
+	return SSD1306_SendCommand (hi2c, SSD1306_SETHIGHCOLUMN | (x >> 4));
 }
 
 /* ---------------- Framebuffer (chỉ sửa RAM, không I2C) ---------------- */
@@ -200,21 +182,18 @@ SSD1306_COLOR color) {
 
 /** @brief Đẩy buffer sang GDDRAM của chip qua I2C (xem SSD1306.h). */
 HAL_StatusTypeDef SSD1306_UpdateScreen (I2C_HandleTypeDef* hi2c, ssd1306_t* ssd) {
-	// Khi gửi SSD1306_COLUMNADDR và SSD1306_PAGEADDR thì 2 tham số tiếp theo
-	// bắt đầu và kết thúc của horizontal scrolling
+	// Khoanh vùng ghi: SSD1306_COLUMNADDR và SSD1306_PAGEADDR mỗi lệnh nhận
+	// thêm 2 tham số là chỉ số bắt đầu và kết thúc của vùng.
+	const uint8_t window_cmds[] = {
+		SSD1306_COLUMNADDR, 0, (uint8_t)(ssd->width - 1),
+		SSD1306_PAGEADDR, 0, (uint8_t)((ssd->height / 8) - 1),
+	};
+	for (size_t i = 0; i < sizeof (window_cmds); i++) {
+		if (SSD1306_SendCommand (hi2c, window_cmds[i]) != HAL_OK)
+			return HAL_ERROR;
+	}
 
-	SSD1306_SendCommand (hi2c, SSD1306_COLUMNADDR);
-	SSD1306_SendCommand (hi2c, 0);				// Gửi cột đầu tiên
-	SSD1306_SendCommand (hi2c, ssd->width - 1); // Gửi cột cuối cùng
-
-	SSD1306_SendCommand (hi2c, SSD1306_PAGEADDR);
-	SSD1306_SendCommand (hi2c, 0);					   // Gửi trang đầu tiên
-	SSD1306_SendCommand (hi2c, (ssd->height / 8) - 1); // Gửi trang cuối cùng
-
-
-	if (SSD1306_SendData (hi2c, ssd->buffer, SSD1306_BUFFER_SIZE) != HAL_ERROR)
-		return HAL_OK;
-	return HAL_ERROR;
+	return SSD1306_SendData (hi2c, ssd->buffer, SSD1306_BUFFER_SIZE);
 }
 
 /* ---------------- Văn bản (cần bảng font ngoài, VD font5x7.h) ---------------- */
