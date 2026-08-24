@@ -191,7 +191,7 @@ int main(void)
         Error_Handler();
     }
 
-    UART_Print(&developer_uart_handler, "HC-05 ready\r\n");
+    UART_Print(&developer_uart_handler, "MKE-M15 ready\r\n");
     UI_Log("BOOT OK");
 
     last_sensor_tick_ms = HAL_GetTick();
@@ -249,8 +249,8 @@ int main(void)
 /**
  * @brief Đóng/mở một kênh ngõ ra và ghi nhật ký UI.
  *
- * Kênh 0 (relay PB12) kéo theo LED chỉ báo PB13 — LED là đèn báo của relay chứ
- * không phải một thiết bị độc lập.
+ * Đây là lối vào DUY NHẤT của việc bật/tắt thiết bị: cả lệnh Bluetooth lẫn nút
+ * OK trên OLED đều đi qua đây, nên trạng thái không thể lệch giữa hai đường.
  *
  * @param channel  0..OUT_COUNT-1; ngoài dải thì hàm không làm gì.
  */

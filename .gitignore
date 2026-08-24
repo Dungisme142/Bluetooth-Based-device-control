@@ -1,10 +1,10 @@
 # ============================================================
 # Build output (CMake / Ninja / Make)
 # ============================================================
-/build/
-/build-*/
-/cmake-build-*/
-/out/
+build/
+build-*/
+cmake-build-*/
+out/
 CMakeCache.txt
 CMakeFiles/
 CMakeScripts/
@@ -53,11 +53,11 @@ core
 # ============================================================
 # IDE & editor
 # ============================================================
-/.vscode/
-/.idea/
+.vscode/
+.idea/
 *.code-workspace
 # STM32CubeIDE / Eclipse
-/.settings/
+.settings/
 .cproject
 .project
 .mxproject
@@ -71,7 +71,7 @@ Release/
 JLinkLog.txt
 JLinkSettings.ini
 # IAR
-/settings/
+settings/
 *.dep
 *.ewt
 # Vim / Emacs / misc
@@ -101,12 +101,12 @@ venv/
 # ============================================================
 # Local-only notes (không commit)
 # ============================================================
-/local/
+local/
 
 # ============================================================
 # Cấu hình deploy riêng của từng máy (hostname/IP nội bộ)
 # ============================================================
-/scripts/.env
+scripts/.env
 *.env.local
 .env
 !scripts/.env.example
