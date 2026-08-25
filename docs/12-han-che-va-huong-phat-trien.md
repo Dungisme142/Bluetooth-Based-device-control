@@ -96,12 +96,6 @@ PA4 không phải chân 5 V tolerant, trong khi J6 cấp `+5V` cho cảm biến.
 *Hệ quả*: nếu đúng, chân PA4 có thể hỏng dần theo thời gian dù mạch vẫn chạy được lúc đầu.
 *Khắc phục*: đo mức HIGH thực tế trên PA4 bằng đồng hồ. Nếu > 3,6 V thì đổi J6 sang `+3.3V`.
 
-### ~~L-11 · Comment lạc hậu trong code~~ ✅ ĐÃ SỬA
-
-Comment của `Set_Output()` từng ghi *"Kênh 0 (relay PB12) kéo theo LED chỉ báo PB13"* — mô
-tả kiến trúc cũ trước đợt refactor bỏ relay, sai so với bảng chân hiện tại (OUT-1 = PA8,
-PB13 = OUT-4). Đã viết lại cho đúng.
-
 ## 12.2 Hướng phát triển — chất lượng code
 
 ### 1. Khung unit test chạy trên máy tính

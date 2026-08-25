@@ -26,7 +26,7 @@ flowchart LR
     PWR --> DHT
     PHONE <-->|Bluetooth SPP| BLE
     BLE <-->|USART2 · PA2/PA3| MCU
-    MCU <-->|I2C1 · PB6/PB7| OLED
+    MCU <-->|I2C2 · PB10/PB11| OLED
     MCU <-->|1-wire · PA4| DHT
     BTN -->|EXTI · PA5-PA7, PB0/PB1| MCU
     MCU -->|PA8, PB12-PB15| OUT
@@ -85,8 +85,8 @@ Màn hình 0.96" SSD1306, module 4 chân (`0.96OLED_4P_MODULE_JX`).
 
 | Chân | Nối tới |
 |---|---|
-| SDA | **PB7** (I2C1_SDA) |
-| SCL | **PB6** (I2C1_SCL) |
+| SDA | **PB11** (I2C2_SDA) |
+| SCL | **PB10** (I2C2_SCL) |
 | VCC | Rail `+3.3V` |
 | GND | GND |
 
@@ -145,11 +145,11 @@ Năm nút nhấn thường mở, một đầu nối chân MCU, một đầu nố
 
 | Nút | Chân MCU | Vai trò |
 |---|---|---|
-| SW1 | PA5 | NEXT — trang kế |
-| SW2 | PB1 | PREV — trang trước |
-| SW3 | PB0 | UP — lên |
-| SW4 | PA6 | DOWN — xuống |
-| SW5 | PA7 | OK — bật/tắt kênh đang chọn |
+| SW1 | PA5 | UP — lên |
+| SW2 | PA6 | PREV — trang trước |
+| SW3 | PA7 | OK — bật/tắt kênh đang chọn |
+| SW4 | PB0 | DOWN — xuống |
+| SW5 | PB1 | NEXT — trang kế |
 
 **Không có điện trở kéo lên ngoài** và **không có tụ chống dội**: firmware dùng pull-up
 nội của STM32 (mức nghỉ = HIGH, nhấn = LOW) và chống dội hoàn toàn bằng phần mềm

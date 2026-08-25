@@ -27,19 +27,19 @@
 /*==================== Hằng số cấu hình ====================*/
 
 /* Chu kỳ các tác vụ nền (ms) */
-#define SENSOR_PERIOD_MS       2000u   /* Đọc DHT11 */
-#define STATUS_PERIOD_MS       3000u   /* Báo trạng thái về điện thoại */
-#define HEARTBEAT_PERIOD_MS    1000u   /* Nhấp nháy LED PC13 báo còn sống */
+#define SENSOR_PERIOD_MS    2000u /* Đọc DHT11 */
+#define STATUS_PERIOD_MS    3000u /* Báo trạng thái về điện thoại */
+#define HEARTBEAT_PERIOD_MS 1000u /* Nhấp nháy LED PC13 báo còn sống */
 
 /* Chờ DHT11 hoàn tất một phép đo: poll mỗi 5 ms, bỏ cuộc sau 500 ms */
-#define DHT11_POLL_INTERVAL_MS   5u
+#define DHT11_POLL_INTERVAL_MS 5u
 #define DHT11_POLL_TIMEOUT_MS  500u
 
 #define UART_RX_BUFFER_SIZE    128u
 #define UART_FRAME_BUFFER_SIZE 128u
 
 /* Đủ rộng cho chuỗi trạng thái dài nhất (~45 ký tự) kèm CRLF */
-#define STATUS_TEXT_SIZE        64u
+#define STATUS_TEXT_SIZE 64u
 
 /* Tần số bộ đếm TIM2 — 1 MHz để mỗi tick bằng đúng 1 us */
 #define TIM2_COUNTER_FREQ_HZ 1000000u
@@ -48,28 +48,26 @@
 
 /* Không static: stm32f1xx_it.c đẩy ngắt vào huart2 và htim2 qua extern. */
 UART_HandleTypeDef huart2;
-I2C_HandleTypeDef  hi2c1;
-TIM_HandleTypeDef  htim2;
+I2C_HandleTypeDef hi2c2;
+TIM_HandleTypeDef htim2;
 
 /*==================== Trạng thái hệ thống ====================*/
 
-static uint8_t  last_temp;                 /* Nhiệt độ đọc lần cuối (độ C) */
-static uint8_t  last_humidity;             /* Độ ẩm đọc lần cuối (%) */
-static bool     output_on[OUT_COUNT];      /* true = kênh đang đóng */
-static bool     bluetooth_connected;       /* true = đã nhận được byte từ module BT */
-static bool     sensor_valid;              /* true = đã từng đọc DHT11 thành công */
-static uint32_t last_sensor_ok_ms;         /* Mốc tick của lần đọc thành công cuối */
+static uint8_t last_temp;          /* Nhiệt độ đọc lần cuối (độ C) */
+static uint8_t last_humidity;      /* Độ ẩm đọc lần cuối (%) */
+static bool output_on[OUT_COUNT];  /* true = kênh đang đóng */
+static bool bluetooth_connected;   /* true = đã nhận được byte từ module BT */
+static bool sensor_valid;          /* true = đã từng đọc DHT11 thành công */
+static uint32_t last_sensor_ok_ms; /* Mốc tick của lần đọc thành công cuối */
 
 /* Cả 5 kênh dùng chung driver Digital_Out: nó generic theo {port, pin, state}
  * nên một con MOSFET, một opto hay một chân tín hiệu thường đều lái được.
  *
  * Thứ tự PHẢI khớp với ui_outputs[] trong src/ui.c — cùng đánh số 0..N-1. */
 static Digital_Out_HandleTypeDef outputs[OUT_COUNT] = {
-    { OUT1_PORT, OUT1_PIN, DIGITAL_OUT_OFF },
-    { OUT2_PORT, OUT2_PIN, DIGITAL_OUT_OFF },
-    { OUT3_PORT, OUT3_PIN, DIGITAL_OUT_OFF },
-    { OUT4_PORT, OUT4_PIN, DIGITAL_OUT_OFF },
-    { OUT5_PORT, OUT5_PIN, DIGITAL_OUT_OFF },
+    {OUT1_PORT, OUT1_PIN, DIGITAL_OUT_OFF}, {OUT2_PORT, OUT2_PIN, DIGITAL_OUT_OFF},
+    {OUT3_PORT, OUT3_PIN, DIGITAL_OUT_OFF}, {OUT4_PORT, OUT4_PIN, DIGITAL_OUT_OFF},
+    {OUT5_PORT, OUT5_PIN, DIGITAL_OUT_OFF},
 };
 
 /* Mức logic ứng với trạng thái BẬT của từng kênh. Tách khỏi bảng handle vì
@@ -89,12 +87,12 @@ static uint8_t uart_frame_buffer[UART_FRAME_BUFFER_SIZE];
  * bộ đệm vòng, nên không có ai khác chạm vào nó cùng lúc. */
 static uint8_t uart_rx_byte;
 
-static Ring_Buffer_HandleTypeDef    ring_buffer_handler;
+static Ring_Buffer_HandleTypeDef ring_buffer_handler;
 static Developer_UART_HandleTypeDef developer_uart_handler;
 
 /*==================== Cấu hình DHT11 ====================*/
 
-static DHT11_Config_t dht11_cfg = { DHT11_PORT, DHT11_PIN, DHT11_EXTI_IRQn, &htim2 };
+static DHT11_Config_t dht11_cfg = {DHT11_PORT, DHT11_PIN, DHT11_EXTI_IRQn, &htim2};
 
 /*==================== Nguyên mẫu hàm ====================*/
 
@@ -105,7 +103,7 @@ void Error_Handler(void);
 
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
-static void MX_I2C1_Init(void);
+static void MX_I2C2_Init(void);
 static void MX_TIM2_Init(void);
 
 static void Set_Output(uint8_t channel, bool on);
@@ -130,12 +128,12 @@ static void Command_AUTO(char *return_msg, const char *args);
  * Thêm một lệnh mới = thêm một handler ở dưới và một dòng ở đây. Nhớ cập nhật
  * trang HƯỚNG DẪN trong ui.c cho khớp. */
 Command_HandleTypeDef Command_Menu[] = {
-    { "ON",     Command_ON     },   /* Đóng một kênh, hoặc tất cả */
-    { "OFF",    Command_OFF    },   /* Mở một kênh, hoặc tất cả */
-    { "STATUS", Command_STATUS },   /* Nhiệt độ, độ ẩm, ngõ ra, kết nối */
-    { "TEMP",   Command_TEMP   },   /* Chỉ nhiệt độ */
-    { "HUM",    Command_HUM    },   /* Chỉ độ ẩm */
-    { "AUTO",   Command_AUTO   }    /* Chế độ tự động — chưa triển khai */
+    {"ON", Command_ON},         /* Đóng một kênh, hoặc tất cả */
+    {"OFF", Command_OFF},       /* Mở một kênh, hoặc tất cả */
+    {"STATUS", Command_STATUS}, /* Nhiệt độ, độ ẩm, ngõ ra, kết nối */
+    {"TEMP", Command_TEMP},     /* Chỉ nhiệt độ */
+    {"HUM", Command_HUM},       /* Chỉ độ ẩm */
+    {"AUTO", Command_AUTO}      /* Chế độ tự động — chưa triển khai */
 };
 
 uint8_t Command_Menu_Size = (uint8_t)(sizeof(Command_Menu) / sizeof(Command_Menu[0]));
@@ -144,13 +142,13 @@ uint8_t Command_Menu_Size = (uint8_t)(sizeof(Command_Menu) / sizeof(Command_Menu
 
 int main(void)
 {
-    uint32_t     now_ms;
-    uint32_t     last_sensor_tick_ms;
-    uint32_t     last_status_tick_ms;
-    uint32_t     last_heartbeat_tick_ms;
-    bool         bluetooth_logged = false;
-    uint8_t      i;
-    UI_Data_t    ui_data;
+    uint32_t now_ms;
+    uint32_t last_sensor_tick_ms;
+    uint32_t last_status_tick_ms;
+    uint32_t last_heartbeat_tick_ms;
+    bool bluetooth_logged = false;
+    uint8_t i;
+    UI_Data_t ui_data;
     UI_Request_t ui_request;
 
     HAL_Init();
@@ -158,7 +156,7 @@ int main(void)
 
     MX_GPIO_Init();
     MX_USART2_UART_Init();
-    MX_I2C1_Init();
+    MX_I2C2_Init();
     MX_TIM2_Init();
 
     /* 5 ngõ ra. MX_GPIO_Init() đã ghi sẵn mức TẮT lên các chân này nên bước
@@ -174,7 +172,7 @@ int main(void)
         Error_Handler();
     }
 
-    UI_Init(&hi2c1);
+    UI_Init(&hi2c2);
 
     if (Ring_Buffer_Init(&ring_buffer_handler, uart_rx_buffer, UART_RX_BUFFER_SIZE,
                          sizeof(uint8_t)) != DEV_SUCCESS) {
@@ -266,13 +264,11 @@ static void Set_Output(uint8_t channel, bool on)
 
     /* Quy về mức logic thật của kênh rồi mới gọi driver: driver hiểu ON là mức
      * CAO, còn output_on_state[] mới là sự thật của phần cứng. */
-    Digital_Out_SetState(&outputs[channel],
-                         (output_on_state[channel] == GPIO_PIN_SET)
-                             ? (on ? DIGITAL_OUT_ON : DIGITAL_OUT_OFF)
-                             : (on ? DIGITAL_OUT_OFF : DIGITAL_OUT_ON));
+    Digital_Out_SetState(&outputs[channel], (output_on_state[channel] == GPIO_PIN_SET)
+                                                ? (on ? DIGITAL_OUT_ON : DIGITAL_OUT_OFF)
+                                                : (on ? DIGITAL_OUT_OFF : DIGITAL_OUT_ON));
 
-    (void)snprintf(label, sizeof(label), "OUT%u %s",
-                   (unsigned)(channel + 1u), on ? "ON" : "OFF");
+    (void)snprintf(label, sizeof(label), "OUT%u %s", (unsigned)(channel + 1u), on ? "ON" : "OFF");
     UI_Log(label);
 }
 
@@ -290,7 +286,7 @@ static void Set_Output(uint8_t channel, bool on)
  */
 static void Format_Status(char *out, size_t out_size)
 {
-    char    map[OUT_COUNT + 1u];
+    char map[OUT_COUNT + 1u];
     uint8_t i;
 
     for (i = 0u; i < (uint8_t)OUT_COUNT; i++) {
@@ -298,12 +294,9 @@ static void Format_Status(char *out, size_t out_size)
     }
     map[OUT_COUNT] = '\0';
 
-    (void)snprintf(out, out_size, "TEMP=%uC HUM=%u%% OUT1=%s BT=%s OUT=%s\r\n",
-                   (unsigned)last_temp,
-                   (unsigned)last_humidity,
-                   output_on[0] ? "ON" : "OFF",
-                   bluetooth_connected ? "OK" : "NO",
-                   map);
+    (void)snprintf(out, out_size, "TEMP=%uC HUM=%u%% OUT1=%s BT=%s OUT=%s\r\n", (unsigned)last_temp,
+                   (unsigned)last_humidity, output_on[0] ? "ON" : "OFF",
+                   bluetooth_connected ? "OK" : "NO", map);
 }
 
 static void Send_Status(void)
@@ -333,8 +326,8 @@ static void Send_Status(void)
 static bool DHT11_ReadOnce(void)
 {
     DHT11_Data_t dht_data = {0};
-    uint32_t     start_ms;
-    uint32_t     last_poll_ms;
+    uint32_t start_ms;
+    uint32_t last_poll_ms;
 
     DHT11_StartRequest();
 
@@ -356,7 +349,7 @@ static bool DHT11_ReadOnce(void)
 
         if (state == DHT11_STATE_COMPLETE) {
             if (!dht_data.is_valid) {
-                return false;   /* Checksum sai */
+                return false; /* Checksum sai */
             }
             /* temp_dec / humidity_dec bị bỏ qua có ý: DHT11 luôn trả về 0 ở
              * hai trường này. */
@@ -376,7 +369,7 @@ static bool DHT11_ReadOnce(void)
         }
     }
 
-    return false;   /* Quá hạn: cảm biến không hoàn tất phiên đo */
+    return false; /* Quá hạn: cảm biến không hoàn tất phiên đo */
 }
 
 /*==================== Cấp dữ liệu cho UI ====================*/
@@ -425,7 +418,7 @@ static void Fill_UI_Data(UI_Data_t *out)
 static void Command_SetOutputs(char *return_msg, const char *args, bool on)
 {
     const char *state_text = on ? "ON" : "OFF";
-    uint8_t     channel;
+    uint8_t channel;
 
     if (args == NULL) {
         Set_Output(0u, on);
@@ -450,8 +443,8 @@ static void Command_SetOutputs(char *return_msg, const char *args, bool on)
 
     channel = (uint8_t)(args[0] - '1');
     Set_Output(channel, on);
-    (void)snprintf(return_msg, COMMAND_RETURN_MSG_SIZE, "OUT%u_%s\r\n",
-                   (unsigned)(channel + 1u), state_text);
+    (void)snprintf(return_msg, COMMAND_RETURN_MSG_SIZE, "OUT%u_%s\r\n", (unsigned)(channel + 1u),
+                   state_text);
 }
 
 static void Command_ON(char *return_msg, const char *args)
@@ -516,14 +509,14 @@ void SystemClock_Config(void)
     rcc_osc_init.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
     rcc_osc_init.PLL.PLLState = RCC_PLL_ON;
     rcc_osc_init.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-    rcc_osc_init.PLL.PLLMUL = RCC_PLL_MUL9;     /* 8 MHz x 9 = 72 MHz */
+    rcc_osc_init.PLL.PLLMUL = RCC_PLL_MUL9; /* 8 MHz x 9 = 72 MHz */
 
     if (HAL_RCC_OscConfig(&rcc_osc_init) != HAL_OK) {
-        Error_Handler();    /* Thạch anh HSE không dao động được */
+        Error_Handler(); /* Thạch anh HSE không dao động được */
     }
 
-    rcc_clk_init.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK |
-                             RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+    rcc_clk_init.ClockType =
+        RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
     rcc_clk_init.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
     rcc_clk_init.AHBCLKDivider = RCC_SYSCLK_DIV1;
     rcc_clk_init.APB1CLKDivider = RCC_HCLK_DIV2;
@@ -541,7 +534,7 @@ static void MX_GPIO_Init(void)
     GPIO_InitTypeDef gpio_init = {0};
 
     /* GPIOA: UART BT (PA2/PA3), DHT11 (PA4), 3 nút (PA5..PA7), OUT-1 (PA8).
-     * GPIOB: 2 nút (PB0/PB1), I2C1 (PB6/PB7), OUT-2..OUT-5 (PB12..PB15).
+     * GPIOB: 2 nút (PB0/PB1), I2C2 (PB10/PB11), OUT-2..OUT-5 (PB12..PB15).
      * GPIOC: LED heartbeat onboard (PC13).
      * Thiếu clock của port nào thì các chân port đó không phản hồi gì cả. */
     __HAL_RCC_GPIOA_CLK_ENABLE();
@@ -608,7 +601,7 @@ static void MX_GPIO_Init(void)
 static void MX_USART2_UART_Init(void)
 {
     huart2.Instance = BT_UART_INSTANCE;
-    huart2.Init.BaudRate = BT_UART_BAUDRATE;    /* 9600 — mặc định của MKE-M15 */
+    huart2.Init.BaudRate = BT_UART_BAUDRATE; /* 9600 — mặc định của MKE-M15 */
     huart2.Init.WordLength = UART_WORDLENGTH_8B;
     huart2.Init.StopBits = UART_STOPBITS_1;
     huart2.Init.Parity = UART_PARITY_NONE;
@@ -621,19 +614,19 @@ static void MX_USART2_UART_Init(void)
     }
 }
 
-static void MX_I2C1_Init(void)
+static void MX_I2C2_Init(void)
 {
-    hi2c1.Instance = I2C1;
-    hi2c1.Init.ClockSpeed = I2C1_CLOCK_SPEED;   /* 400 kHz Fast-mode */
-    hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
-    hi2c1.Init.OwnAddress1 = 0;
-    hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-    hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-    hi2c1.Init.OwnAddress2 = 0;
-    hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-    hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+    hi2c2.Instance = I2C2;
+    hi2c2.Init.ClockSpeed = I2C2_CLOCK_SPEED; /* 400 kHz Fast-mode */
+    hi2c2.Init.DutyCycle = I2C_DUTYCYCLE_2;
+    hi2c2.Init.OwnAddress1 = 0;
+    hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+    hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+    hi2c2.Init.OwnAddress2 = 0;
+    hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+    hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
 
-    if (HAL_I2C_Init(&hi2c1) != HAL_OK) {
+    if (HAL_I2C_Init(&hi2c2) != HAL_OK) {
         Error_Handler();
     }
 }
@@ -657,7 +650,7 @@ static void MX_TIM2_Init(void)
     }
 
     if ((timer_clock_hz % TIM2_COUNTER_FREQ_HZ) != 0u) {
-        Error_Handler();    /* Không chia ra được 1 MHz chính xác */
+        Error_Handler(); /* Không chia ra được 1 MHz chính xác */
     }
 
     htim2.Instance = TIM2;
@@ -728,23 +721,23 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef *hi2c)
 {
     GPIO_InitTypeDef gpio_init = {0};
 
-    if (hi2c->Instance == I2C1) {
+    if (hi2c->Instance == I2C2) {
         __HAL_RCC_GPIOB_CLK_ENABLE();
 
-        gpio_init.Pin = I2C1_SCL_PIN | I2C1_SDA_PIN;
+        gpio_init.Pin = I2C2_SCL_PIN | I2C2_SDA_PIN;
         gpio_init.Mode = GPIO_MODE_AF_OD;
         gpio_init.Speed = GPIO_SPEED_FREQ_HIGH;
-        HAL_GPIO_Init(I2C1_SCL_PORT, &gpio_init);
+        HAL_GPIO_Init(I2C2_SCL_PORT, &gpio_init);
 
-        __HAL_RCC_I2C1_CLK_ENABLE();
+        __HAL_RCC_I2C2_CLK_ENABLE();
     }
 }
 
 void HAL_I2C_MspDeInit(I2C_HandleTypeDef *hi2c)
 {
-    if (hi2c->Instance == I2C1) {
-        __HAL_RCC_I2C1_CLK_DISABLE();
-        HAL_GPIO_DeInit(I2C1_SCL_PORT, I2C1_SCL_PIN | I2C1_SDA_PIN);
+    if (hi2c->Instance == I2C2) {
+        __HAL_RCC_I2C2_CLK_DISABLE();
+        HAL_GPIO_DeInit(I2C2_SCL_PORT, I2C2_SCL_PIN | I2C2_SDA_PIN);
     }
 }
 

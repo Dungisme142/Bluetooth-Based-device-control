@@ -194,10 +194,10 @@ phải sửa cả hai chỗ (xem [06](06-giao-thuc-bluetooth.md) §6.9).
 
 | Nút | HOME | OUTPUTS | SENSOR | LOG | HƯỚNG DẪN |
 |---|---|---|---|---|---|
-| **NEXT** (PA5) | → OUTPUTS | → SENSOR | → LOG | → HƯỚNG DẪN | → HOME |
-| **PREV** (PB1) | → HƯỚNG DẪN | → HOME | → OUTPUTS | → SENSOR | → LOG |
-| **UP** (PB0) | con trỏ lên 1 kênh (vòng) | con trỏ lên 1 kênh (vòng) | con trỏ lên | **cuộn về quá khứ** | con trỏ lên |
-| **DOWN** (PA6) | con trỏ xuống 1 kênh (vòng) | con trỏ xuống 1 kênh (vòng) | con trỏ xuống | **cuộn về hiện tại** | con trỏ xuống |
+| **NEXT** (PB1) | → OUTPUTS | → SENSOR | → LOG | → HƯỚNG DẪN | → HOME |
+| **PREV** (PA6) | → HƯỚNG DẪN | → HOME | → OUTPUTS | → SENSOR | → LOG |
+| **UP** (PA5) | con trỏ lên 1 kênh (vòng) | con trỏ lên 1 kênh (vòng) | con trỏ lên | **cuộn về quá khứ** | con trỏ lên |
+| **DOWN** (PB0) | con trỏ xuống 1 kênh (vòng) | con trỏ xuống 1 kênh (vòng) | con trỏ xuống | **cuộn về hiện tại** | con trỏ xuống |
 | **OK** (PA7) | bật/tắt kênh đang chọn | bật/tắt kênh đang chọn | bật/tắt kênh đang chọn | **nhảy về bám đáy** | bật/tắt kênh đang chọn |
 
 Con trỏ chọn kênh là **một biến dùng chung cho mọi trang** (`ui_selected_output`): chọn kênh
@@ -282,7 +282,7 @@ Trước khi vào vòng lặp chính, `UI_Init()` vẽ một màn hình chào:
 │                                │
 │ 5 OUTPUTS  5 BUTTONS           │
 │                                │
-│ PA5/PB1 = DOI TRANG            │
+│ PA6/PB1 = DOI TRANG            │
 └────────────────────────────────┘
 ```
 

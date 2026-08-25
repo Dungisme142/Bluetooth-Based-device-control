@@ -13,9 +13,9 @@
  *      TIM2        2   watchdog/timeout của DHT11
  *      EXTI4       5   giải mã bit DHT11 (PA4) — PHẢI cao hơn UART
  *      USART2      6   nhận lệnh Bluetooth
- *      EXTI9_5     7   nút NEXT (PA5), DOWN (PA6), OK (PA7)
- *      EXTI0       7   nút UP (PB0)
- *      EXTI1       7   nút PREV (PB1)
+ *      EXTI9_5     7   nút UP (PA5), PREV (PA6), OK (PA7)
+ *      EXTI0       7   nút DOWN (PB0)
+ *      EXTI1       7   nút NEXT (PB1)
  *      SysTick    15   TICK_INT_PRIORITY, thấp nhất
  *
  * PR nào đụng vào ngắt phải kiểm lại bảng này còn đúng không, và số ưu tiên
@@ -57,7 +57,7 @@ void EXTI4_IRQHandler(void)
 }
 
 /**
- * @brief EXTI line 5..9 dùng chung một vector — nút NEXT (PA5), DOWN (PA6)
+ * @brief EXTI line 5..9 dùng chung một vector — nút UP (PA5), PREV (PA6)
  *        và OK (PA7).
  *
  * Phải gọi cho từng chân: HAL_GPIO_EXTI_IRQHandler() chỉ xử lý đúng line
@@ -71,7 +71,7 @@ void EXTI9_5_IRQHandler(void)
 }
 
 /**
- * @brief EXTI line 0 — nút UP (PB0). Vector riêng, không chia sẻ với ai.
+ * @brief EXTI line 0 — nút DOWN (PB0). Vector riêng, không chia sẻ với ai.
  *
  * Xử lý thực tế (chống dội phím + đổi trang) nằm trong HAL_GPIO_EXTI_Callback().
  */
@@ -81,7 +81,7 @@ void EXTI0_IRQHandler(void)
 }
 
 /**
- * @brief EXTI line 1 — nút PREV (PB1). Vector riêng, không chia sẻ với ai.
+ * @brief EXTI line 1 — nút NEXT (PB1). Vector riêng, không chia sẻ với ai.
  */
 void EXTI1_IRQHandler(void)
 {
