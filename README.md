@@ -207,12 +207,12 @@ Nghiệm thu bằng 79 ca kiểm thử thủ công:
 
 ### Nhóm thực hiện
 
-| Họ và tên | MSSV |
-|---|---|
-| Hoàng Bùi Nghĩa Dũng | 2410585 |
-| Trần Đình Ý | 2414100 |
-| Nguyễn Trọng Nhân | 2452882 |
-| Nguyễn Tuấn Minh | 2412108 |
+| Họ và tên | MSSV | Phần đảm nhiệm |
+|---|---|---|
+| Hoàng Bùi Nghĩa Dũng | 2410585 | Thiết kế module DHT11, chạy thử mạch nguyên lý trên breadboard |
+| Trần Đình Ý | 2414100 | Sơ đồ nguyên lý (schematic), layout PCB, màn hình OLED |
+| Nguyễn Tuấn Minh | 2412108 | Giao tiếp UART, hướng dẫn sử dụng BLE |
+| Nguyễn Trọng Nhân | 2452882 | Thiết kế luồng hệ thống và cơ chế ngắt |
 
 ### Giảng viên hướng dẫn
 
