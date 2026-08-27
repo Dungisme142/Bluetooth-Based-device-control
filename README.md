@@ -205,6 +205,24 @@ Nghiệm thu bằng 79 ca kiểm thử thủ công:
 
 Đồ án cuối khoá Embedded C.
 
+### Nhóm thực hiện
+
+| Họ và tên | MSSV |
+|---|---|
+| Hoàng Bùi Nghĩa Dũng | 2410585 |
+| Trần Đình Ý | 2414100 |
+| Nguyễn Trọng Nhân | 2452882 |
+| Nguyễn Tuấn Minh | 2412108 |
+
+### Giảng viên hướng dẫn
+
+| Vai trò | Họ và tên |
+|---|---|
+| Mentor | Võ Phúc Thịnh |
+| Th.S | Nguyễn Khánh Lợi |
+
+### Thông tin dự án
+
 | | |
 |---|---|
 | Repository | [Bluetooth-Based-device-control](https://github.com/Dungisme142/Bluetooth-Based-device-control) |
