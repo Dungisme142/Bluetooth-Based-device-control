@@ -207,12 +207,29 @@ Nghiệm thu bằng 79 ca kiểm thử thủ công:
 
 ### Nhóm thực hiện
 
-| Họ và tên | MSSV | Phần đảm nhiệm |
+| Họ và tên | MSSV | Hạng mục chính |
 |---|---|---|
-| Hoàng Bùi Nghĩa Dũng | 2410585 | Thiết kế module DHT11, chạy thử mạch nguyên lý trên breadboard |
-| Trần Đình Ý | 2414100 | Sơ đồ nguyên lý (schematic), layout PCB, màn hình OLED |
-| Nguyễn Tuấn Minh | 2412108 | Giao tiếp UART, hướng dẫn sử dụng BLE |
-| Nguyễn Trọng Nhân | 2452882 | Thiết kế luồng hệ thống và cơ chế ngắt |
+| Hoàng Bùi Nghĩa Dũng | 2410585 | 1 — Cảm biến và đọc dữ liệu: DHT11 giao tiếp single-wire |
+| Nguyễn Trọng Nhân | 2452882 | 2 — Ngắt và định thời: timer base & periodical task |
+| Trần Đình Ý | 2414100 | 3 — Cơ cấu chấp hành và chỉ báo: relay & LED status qua GPIO |
+| Nguyễn Tuấn Minh | 2412108 | 4 — Giao tiếp và giải mã lệnh: UART – HC-05 & protocol parser |
+
+**Chi tiết hạng mục chính**
+
+| # | Hạng mục | Phụ trách | Sản phẩm bàn giao |
+|---|---|---|---|
+| 1 | Cảm biến và đọc dữ liệu — DHT11 giao tiếp single-wire | Hoàng Bùi Nghĩa Dũng | Kết quả kiểm thử đọc dữ liệu và phát hiện lỗi |
+| 2 | Ngắt và định thời — timer base & periodical task | Nguyễn Trọng Nhân | ISR / callback xử lý ngắt timer · cờ báo truyền dữ liệu định kỳ · hàm debounce cho nút nhấn |
+| 3 | Cơ cấu chấp hành và chỉ báo — relay & LED status qua GPIO | Trần Đình Ý | Sơ đồ nguyên lý mạch kích relay · kết quả kiểm thử relay và LED trạng thái |
+| 4 | Giao tiếp và giải mã lệnh — UART – HC-05 & protocol parser | Nguyễn Tuấn Minh | Trình xử lý ngắt UART RX (hoặc DMA) · bộ đệm nhận và thư viện giải mã lệnh · chuỗi phản hồi trạng thái relay, nhiệt độ, độ ẩm và lỗi hệ thống |
+
+**Hạng mục phụ**
+
+| Hạng mục | Phụ trách | Sản phẩm bàn giao |
+|---|---|---|
+| Giao tiếp I2C, thiết kế và in PCB | Trần Đình Ý | Trình hiển thị thông tin trên OLED |
+| Vẽ schematic diagram, block diagram | Nguyễn Tuấn Minh | Quản lý và vẽ sơ đồ nguyên lý / nối dây |
+| Tạo và quản lý GitHub | Hoàng Bùi Nghĩa Dũng | Quản lý repository cho nhóm |
 
 ### Giảng viên hướng dẫn
 
