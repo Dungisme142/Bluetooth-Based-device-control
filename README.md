@@ -27,7 +27,7 @@ relay/SSR và mọi việc cách ly điện lưới nằm ở module ngoài.
 Dự án chạm vào các chủ đề chính của một khoá Embedded C:
 
 | Chủ đề | Thể hiện ở |
-|---|---|
+| --- | --- |
 | GPIO ngõ ra, đảo cực tính | `Digital_Out.c` |
 | Ngắt ngoài EXTI và phân bổ vector | 5 nút + bus DHT11 |
 | Chống dội phím bằng phần mềm | `UI_SampleButton()` |
@@ -43,7 +43,7 @@ Dự án chạm vào các chủ đề chính của một khoá Embedded C:
 ## 3. Hardware Overview
 
 | Thành phần | Vai trò |
-|---|---|
+| --- | --- |
 | STM32F103C8T6 (Blue Pill) | MCU, 72 MHz, 64 KB flash / 20 KB RAM |
 | MKE-M15 | Module Bluetooth, UART 9600 8N1 |
 | SSD1306 OLED 0.96" | Màn hình 128×64, I2C |
@@ -59,7 +59,7 @@ Dự án chạm vào các chủ đề chính của một khoá Embedded C:
 Sơ đồ nguyên lý: [`docs/images/schematic.pdf`](docs/images/schematic.pdf)
 
 | Chân | Chức năng | Chân | Chức năng |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | PA2 / PA3 | USART2 ↔ MKE-M15 | PA8 | OUT-1 |
 | PA4 | DHT11 DATA | PB15 | OUT-2 |
 | PA5 | Nút UP | PB14 | OUT-3 |
@@ -99,7 +99,7 @@ Quy tắc bất di bất dịch: **UI không tự bật thiết bị** — nó c
 Thang ưu tiên (số nhỏ = ưu tiên cao) xếp đúng theo độ chặt của hạn chót:
 
 | Vector | Ưu tiên | Ràng buộc |
-|---|---|---|
+| --- | --- | --- |
 | TIM2 (watchdog DHT11) | 2 | Watchdog không được bị chèn |
 | EXTI4 (bit DHT11) | 5 | **77–124 µs** giữa hai sườn |
 | USART2 | 6 | ~1 ms một byte @ 9600 |
@@ -161,7 +161,7 @@ qua tham số chứ không tham chiếu biến toàn cục của tầng ứng d�
 ## 10. Performance & Timing Trade-offs
 
 | Chỉ số | Giá trị |
-|---|---|
+| --- | --- |
 | Chu kỳ vòng lặp điển hình | < 200 µs (~5000 vòng/giây) |
 | Trường hợp xấu nhất | ~525 ms (đọc cảm biến quá hạn + một khung OLED) |
 | Vẽ một khung OLED | ~25 ms, blocking (1 KB qua I2C 400 kHz) |
@@ -208,7 +208,7 @@ Nghiệm thu bằng 79 ca kiểm thử thủ công:
 ### Nhóm thực hiện
 
 | Họ và tên | MSSV | Hạng mục chính |
-|---|---|---|
+| --- | --- | --- |
 | Hoàng Bùi Nghĩa Dũng | 2410585 | 1 — Cảm biến và đọc dữ liệu: DHT11 giao tiếp single-wire |
 | Nguyễn Trọng Nhân | 2452882 | 2 — Ngắt và định thời: timer base & periodical task |
 | Trần Đình Ý | 2414100 | 3 — Cơ cấu chấp hành và chỉ báo: relay & LED status qua GPIO |
@@ -217,16 +217,16 @@ Nghiệm thu bằng 79 ca kiểm thử thủ công:
 **Chi tiết hạng mục chính**
 
 | # | Hạng mục | Phụ trách | Sản phẩm bàn giao |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | Cảm biến và đọc dữ liệu — DHT11 giao tiếp single-wire | Hoàng Bùi Nghĩa Dũng | Kết quả kiểm thử đọc dữ liệu và phát hiện lỗi |
 | 2 | Ngắt và định thời — timer base & periodical task | Nguyễn Trọng Nhân | ISR / callback xử lý ngắt timer · cờ báo truyền dữ liệu định kỳ · hàm debounce cho nút nhấn |
-| 3 | Cơ cấu chấp hành và chỉ báo — relay & LED status qua GPIO | Trần Đình Ý | Sơ đồ nguyên lý mạch kích relay · kết quả kiểm thử relay và LED trạng thái |
+| 3 | OLED và menu | Trần Đình Ý | OLED display và menu điều hướng hiện thông tin |
 | 4 | Giao tiếp và giải mã lệnh — UART – HC-05 & protocol parser | Nguyễn Tuấn Minh | Trình xử lý ngắt UART RX (hoặc DMA) · bộ đệm nhận và thư viện giải mã lệnh · chuỗi phản hồi trạng thái relay, nhiệt độ, độ ẩm và lỗi hệ thống |
 
 **Hạng mục phụ**
 
 | Hạng mục | Phụ trách | Sản phẩm bàn giao |
-|---|---|---|
+| --- | --- | --- |
 | Giao tiếp I2C, thiết kế và in PCB | Trần Đình Ý | Trình hiển thị thông tin trên OLED |
 | Vẽ schematic diagram, block diagram | Nguyễn Tuấn Minh | Quản lý và vẽ sơ đồ nguyên lý / nối dây |
 | Tạo và quản lý GitHub | Hoàng Bùi Nghĩa Dũng | Quản lý repository cho nhóm |
@@ -234,14 +234,14 @@ Nghiệm thu bằng 79 ca kiểm thử thủ công:
 ### Giảng viên hướng dẫn
 
 | Vai trò | Họ và tên |
-|---|---|
+| --- | --- |
 | Mentor | Võ Phúc Thịnh |
 | Th.S | Nguyễn Khánh Lợi |
 
 ### Thông tin dự án
 
 | | |
-|---|---|
+| --- | --- |
 | Repository | [Bluetooth-Based-device-control](https://github.com/Dungisme142/Bluetooth-Based-device-control) |
 | MCU | STM32F103C8T6 |
 | Toolchain | arm-none-eabi-gcc · CMake · Ninja |
