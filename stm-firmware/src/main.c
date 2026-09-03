@@ -17,6 +17,8 @@
 #include "DHT11.h"
 #include "Digital_Out.h"
 #include "Ring_Buffer.h"
+#include "auth.h"
+#include "health_monitor.h"
 #include "uart.h"
 #include "ui.h"
 
@@ -38,8 +40,8 @@
 #define UART_RX_BUFFER_SIZE    128u
 #define UART_FRAME_BUFFER_SIZE 128u
 
-/* Đủ rộng cho chuỗi trạng thái dài nhất (~45 ký tự) kèm CRLF */
-#define STATUS_TEXT_SIZE 64u
+/* Đủ rộng cho chuỗi trạng thái dài nhất kèm CRLF */
+#define STATUS_TEXT_SIZE 96u
 
 /* Tần số bộ đếm TIM2 — 1 MHz để mỗi tick bằng đúng 1 us */
 #define TIM2_COUNTER_FREQ_HZ 1000000u
@@ -56,25 +58,26 @@ TIM_HandleTypeDef htim2;
 static uint8_t last_temp;          /* Nhiệt độ đọc lần cuối (độ C) */
 static uint8_t last_humidity;      /* Độ ẩm đọc lần cuối (%) */
 static bool output_on[OUT_COUNT];  /* true = kênh đang đóng */
-static bool bluetooth_connected;   /* true = đã nhận được byte từ module BT */
+static bool bluetooth_connected;   /* true = đang có liên lạc với module BT */
 static bool sensor_valid;          /* true = đã từng đọc DHT11 thành công */
 static uint32_t last_sensor_ok_ms; /* Mốc tick của lần đọc thành công cuối */
 
-/* Cả 5 kênh dùng chung driver Digital_Out: nó generic theo {port, pin, state}
- * nên một con MOSFET, một opto hay một chân tín hiệu thường đều lái được.
- *
- * Thứ tự PHẢI khớp với ui_outputs[] trong src/ui.c — cùng đánh số 0..N-1. */
+static Health_Monitor_t health_mon;
+static bool             ble_kick_pending = false;
+static UI_AlarmState_t  current_alarm_state = ALARM_STATE_DHT_FAULT;
+static uint32_t         last_alarm_toggle_ms = 0u;
+static GPIO_PinState    alarm_pin_level = GPIO_PIN_RESET;
+
+/* 4 kênh ngõ ra PB15..PB12 */
 static Digital_Out_HandleTypeDef outputs[OUT_COUNT] = {
-    {OUT1_PORT, OUT1_PIN, DIGITAL_OUT_OFF}, {OUT2_PORT, OUT2_PIN, DIGITAL_OUT_OFF},
-    {OUT3_PORT, OUT3_PIN, DIGITAL_OUT_OFF}, {OUT4_PORT, OUT4_PIN, DIGITAL_OUT_OFF},
-    {OUT5_PORT, OUT5_PIN, DIGITAL_OUT_OFF},
+    {OUT1_PORT, OUT1_PIN, DIGITAL_OUT_OFF},
+    {OUT2_PORT, OUT2_PIN, DIGITAL_OUT_OFF},
+    {OUT3_PORT, OUT3_PIN, DIGITAL_OUT_OFF},
+    {OUT4_PORT, OUT4_PIN, DIGITAL_OUT_OFF},
 };
 
-/* Mức logic ứng với trạng thái BẬT của từng kênh. Tách khỏi bảng handle vì
- * Digital_Out_SetState() luôn coi ON = mức CAO; kênh nào tác động mức THẤP
- * thì đảo tại đây (xem OUTn_ON_STATE trong pin_config.h). */
 static const GPIO_PinState output_on_state[OUT_COUNT] = {
-    OUT1_ON_STATE, OUT2_ON_STATE, OUT3_ON_STATE, OUT4_ON_STATE, OUT5_ON_STATE,
+    OUT1_ON_STATE, OUT2_ON_STATE, OUT3_ON_STATE, OUT4_ON_STATE,
 };
 
 /*==================== Cụm nhận lệnh qua UART ====================*/
@@ -96,8 +99,6 @@ static DHT11_Config_t dht11_cfg = {DHT11_PORT, DHT11_PIN, DHT11_EXTI_IRQn, &htim
 
 /*==================== Nguyên mẫu hàm ====================*/
 
-/* Hai hàm này không static: SystemClock_Config() được HAL gọi lại sau khi
- * thoát low-power, còn Error_Handler() cũng được ui.c dùng. */
 void SystemClock_Config(void);
 void Error_Handler(void);
 
@@ -111,7 +112,10 @@ static void Format_Status(char *out, size_t out_size);
 static bool DHT11_ReadOnce(void);
 static void Send_Status(void);
 static void Fill_UI_Data(UI_Data_t *out);
+static void Alarm_Task(uint32_t now_ms);
 
+static void Command_LOGIN(char *return_msg, const char *args);
+static void Command_LOGOUT(char *return_msg, const char *args);
 static void Command_SetOutputs(char *return_msg, const char *args, bool on);
 static void Command_ON(char *return_msg, const char *args);
 static void Command_OFF(char *return_msg, const char *args);
@@ -122,15 +126,12 @@ static void Command_AUTO(char *return_msg, const char *args);
 
 /*==================== Bảng lệnh Bluetooth ====================*/
 
-/* UART_Task() tra cứu bảng này qua khai báo extern trong Command_Selector.h.
- * Cố tình KHÔNG static: đây là phần "nội dung" mà tầng lib mong đợi app cấp.
- *
- * Thêm một lệnh mới = thêm một handler ở dưới và một dòng ở đây. Nhớ cập nhật
- * trang HƯỚNG DẪN trong ui.c cho khớp. */
 Command_HandleTypeDef Command_Menu[] = {
+    {"LOGIN", Command_LOGIN},   /* Đăng nhập phiên BLE */
+    {"LOGOUT", Command_LOGOUT}, /* Đăng xuất phiên BLE */
     {"ON", Command_ON},         /* Đóng một kênh, hoặc tất cả */
     {"OFF", Command_OFF},       /* Mở một kênh, hoặc tất cả */
-    {"STATUS", Command_STATUS}, /* Nhiệt độ, độ ẩm, ngõ ra, kết nối */
+    {"STATUS", Command_STATUS}, /* Nhiệt độ, độ ẩm, ngõ ra, kết nối, phiên, cảnh báo */
     {"TEMP", Command_TEMP},     /* Chỉ nhiệt độ */
     {"HUM", Command_HUM},       /* Chỉ độ ẩm */
     {"AUTO", Command_AUTO}      /* Chế độ tự động — chưa triển khai */
@@ -146,7 +147,6 @@ int main(void)
     uint32_t last_sensor_tick_ms;
     uint32_t last_status_tick_ms;
     uint32_t last_heartbeat_tick_ms;
-    bool bluetooth_logged = false;
     uint8_t i;
     UI_Data_t ui_data;
     UI_Request_t ui_request;
@@ -159,7 +159,7 @@ int main(void)
     MX_I2C2_Init();
     MX_TIM2_Init();
 
-    /* 5 ngõ ra. MX_GPIO_Init() đã ghi sẵn mức TẮT lên các chân này nên bước
+    /* 4 ngõ ra PB15..PB12. MX_GPIO_Init() đã ghi sẵn mức TẮT lên các chân này nên bước
      * chuyển sang output dưới đây không làm thiết bị nháy. */
     for (i = 0u; i < (uint8_t)OUT_COUNT; i++) {
         if (Digital_Out_Init(&outputs[i]) != DEV_SUCCESS) {
@@ -167,6 +167,9 @@ int main(void)
         }
         Set_Output(i, false);
     }
+
+    Auth_Init();
+    Health_Monitor_Init(&health_mon);
 
     if (DHT11_Init(&dht11_cfg) != DEV_SUCCESS) {
         Error_Handler();
@@ -199,11 +202,16 @@ int main(void)
     while (1) {
         now_ms = HAL_GetTick();
 
-        /* Mọi mốc thời gian đều so bằng hiệu (now - last): HAL_GetTick() là
-         * uint32_t và tràn sau ~49,7 ngày, phép trừ unsigned vẫn đúng khi tràn
-         * còn phép cộng (now >= last + T) thì không. */
+        /* Bảo trì timeout phiên xác thực độc quyền */
+        Auth_Task(now_ms);
+
+        /* Máy trạng thái cảnh báo tự động PA8 */
+        Alarm_Task(now_ms);
+
+        /* Mọi mốc thời gian đều so bằng hiệu (now - last) */
         if ((now_ms - last_sensor_tick_ms) >= SENSOR_PERIOD_MS) {
-            UI_Log(DHT11_ReadOnce() ? "DHT OK" : "DHT FAIL");
+            bool read_ok = DHT11_ReadOnce();
+            UI_Log(read_ok ? "DHT OK" : "DHT BAD");
             last_sensor_tick_ms = now_ms;
         }
 
@@ -212,32 +220,56 @@ int main(void)
             last_status_tick_ms = now_ms;
         }
 
-        /* Nhấp nháy PC13 mỗi giây: dấu hiệu nhìn-là-biết vòng lặp chính còn
-         * chạy. Đứng yên = treo ở Error_Handler hoặc một ISR nào đó. */
+        /* Nhấp nháy PC13 mỗi giây */
         if ((now_ms - last_heartbeat_tick_ms) >= HEARTBEAT_PERIOD_MS) {
             HAL_GPIO_TogglePin(HEARTBEAT_LED_PORT, HEARTBEAT_LED_PIN);
             last_heartbeat_tick_ms = now_ms;
         }
 
-        /* Ghi nhật ký lần bắt tay đầu tiên với module BT ở đây chứ không ở
-         * trong HAL_UART_RxCpltCallback(): UI_Log() dùng chung bộ đệm vòng với
-         * UI_Task(), gọi từ ISR sẽ tranh chấp với lúc đang vẽ. */
-        if (bluetooth_connected && !bluetooth_logged) {
-            bluetooth_logged = true;
-            UI_Log("BT LINK UP");
+        /* Đồng bộ kết nối Bluetooth từ UART driver và log sự kiện */
+        bool bt_is_connected = (developer_uart_handler.uart_connecting_status == DEVELOPER_UART_CONNECTED);
+        Health_Monitor_ReportBT(&health_mon, bt_is_connected);
+        if (bt_is_connected != bluetooth_connected) {
+            bluetooth_connected = bt_is_connected;
+            if (bluetooth_connected) {
+                UI_Log("BT LINK UP");
+            } else {
+                UI_Log("BT LINK DOWN");
+            }
         }
 
         UART_Task(&developer_uart_handler);
 
+        /* Gửi bản tin LOCAL LOGIN - KICKED khi Local chiếm quyền và UART rảnh */
+        if (ble_kick_pending && (developer_uart_handler.hal_huart->gState == HAL_UART_STATE_READY)) {
+            UART_Print(&developer_uart_handler, "LOCAL LOGIN - KICKED\r\n");
+            ble_kick_pending = false;
+        }
+
         Fill_UI_Data(&ui_data);
         UI_Task(now_ms, &ui_data, &ui_request);
 
-        /* Nút OK trên OLED chỉ *đề nghị* đổi ngõ ra; việc thi hành nằm ở đây.
-         * Nhờ vậy ui.c không cần biết gì về phần còn lại của main.c, và mọi lối
-         * vào của việc bật/tắt thiết bị — nút bấm lẫn lệnh Bluetooth — đều đi
-         * qua đúng một hàm Set_Output(). */
+        /* Thao tác nút của người dùng Local gia hạn timeout phiên */
+        if (ui_request.user_activity) {
+            Auth_NotifyActivity(AUTH_LOCAL);
+        }
+
+        /* Người dùng Local đăng nhập thành công qua OLED keypad */
+        if (ui_request.local_login) {
+            bool kicked_ble = false;
+            if (Auth_Login(AUTH_LOCAL, AUTH_PIN_CODE, &kicked_ble) == AUTH_LOGIN_OK) {
+                UI_Log("LOCAL LOGIN");
+                if (kicked_ble) {
+                    ble_kick_pending = true;
+                }
+            }
+        }
+
+        /* Đảo ngõ ra từ OLED UI — chỉ thực thi khi Local đang sở hữu phiên độc quyền */
         if (ui_request.toggle_output && (ui_request.channel < (uint8_t)OUT_COUNT)) {
-            Set_Output(ui_request.channel, !output_on[ui_request.channel]);
+            if (Auth_IsOwner(AUTH_LOCAL)) {
+                Set_Output(ui_request.channel, !output_on[ui_request.channel]);
+            }
         }
     }
 }
@@ -286,17 +318,28 @@ static void Set_Output(uint8_t channel, bool on)
  */
 static void Format_Status(char *out, size_t out_size)
 {
-    char map[OUT_COUNT + 1u];
-    uint8_t i;
+    char        map[OUT_COUNT + 1u];
+    uint8_t     i;
+    const char *dht_str = Health_Monitor_IsDHTHealthy(&health_mon) ? "OK" : "FAIL";
+    const char *bt_str = bluetooth_connected ? "OK" : "NO";
+    const char *auth_str = Auth_OwnerToString(Auth_GetOwner());
+    const char *alarm_str = "NORMAL";
+
+    if (current_alarm_state == ALARM_STATE_HIGH_HUMIDITY) {
+        alarm_str = "HIGH";
+    } else if (current_alarm_state == ALARM_STATE_DHT_FAULT) {
+        alarm_str = "DHT_FAULT";
+    }
 
     for (i = 0u; i < (uint8_t)OUT_COUNT; i++) {
         map[i] = output_on[i] ? '1' : '0';
     }
     map[OUT_COUNT] = '\0';
 
-    (void)snprintf(out, out_size, "TEMP=%uC HUM=%u%% OUT1=%s BT=%s OUT=%s\r\n", (unsigned)last_temp,
-                   (unsigned)last_humidity, output_on[0] ? "ON" : "OFF",
-                   bluetooth_connected ? "OK" : "NO", map);
+    (void)snprintf(out, out_size,
+                   "TEMP=%uC HUM=%u%% DHT=%s BT=%s AUTH=%s ALARM=%s OUT=%s\r\n",
+                   (unsigned)last_temp, (unsigned)last_humidity,
+                   dht_str, bt_str, auth_str, alarm_str, map);
 }
 
 static void Send_Status(void)
@@ -326,8 +369,9 @@ static void Send_Status(void)
 static bool DHT11_ReadOnce(void)
 {
     DHT11_Data_t dht_data = {0};
-    uint32_t start_ms;
-    uint32_t last_poll_ms;
+    uint32_t     start_ms;
+    uint32_t     last_poll_ms;
+    bool         success = false;
 
     DHT11_StartRequest();
 
@@ -338,8 +382,7 @@ static bool DHT11_ReadOnce(void)
     while ((HAL_GetTick() - start_ms) < DHT11_POLL_TIMEOUT_MS) {
         DHT11_State_t state;
 
-        /* Giữ nhịp poll bằng hiệu tick thay vì HAL_Delay: không khoá CPU trong
-         * SysTick handler và không phụ thuộc độ phân giải của nó. */
+        /* Giữ nhịp poll bằng hiệu tick thay vì HAL_Delay */
         if ((HAL_GetTick() - last_poll_ms) < DHT11_POLL_INTERVAL_MS) {
             continue;
         }
@@ -348,38 +391,68 @@ static bool DHT11_ReadOnce(void)
         state = DHT11_ReadData(&dht_data);
 
         if (state == DHT11_STATE_COMPLETE) {
-            if (!dht_data.is_valid) {
-                return false; /* Checksum sai */
+            if (dht_data.is_valid) {
+                last_temp = dht_data.temp_int;
+                last_humidity = dht_data.humidity_int;
+                last_sensor_ok_ms = HAL_GetTick();
+                sensor_valid = true;
+                success = true;
             }
-            /* temp_dec / humidity_dec bị bỏ qua có ý: DHT11 luôn trả về 0 ở
-             * hai trường này. */
-            last_temp = dht_data.temp_int;
-            last_humidity = dht_data.humidity_int;
-
-            /* Ghi lại mốc đọc được để trang SENSOR nói được "LAST OK 4s": số
-             * đo cũ vẫn hiện trên màn hình sau khi cảm biến hỏng, không có mốc
-             * này thì không cách nào phân biệt số tươi với số đã chết. */
-            last_sensor_ok_ms = HAL_GetTick();
-            sensor_valid = true;
-            return true;
+            break;
         }
 
         if (state == DHT11_STATE_ERROR) {
-            return false;
+            break;
         }
     }
 
-    return false; /* Quá hạn: cảm biến không hoàn tất phiên đo */
+    /* Báo cáo kết quả đo vào hệ thống giám sát sức khỏe */
+    Health_Monitor_ReportDHT11(&health_mon, success);
+
+    return success;
+}
+
+/*==================== Máy trạng thái cảnh báo tự động PA8 ====================*/
+
+static void Alarm_Task(uint32_t now_ms)
+{
+    UI_AlarmState_t target_state;
+
+    if (!Health_Monitor_IsDHTHealthy(&health_mon)) {
+        target_state = ALARM_STATE_DHT_FAULT;
+    } else if (last_humidity > 90u) {
+        target_state = ALARM_STATE_HIGH_HUMIDITY;
+    } else {
+        target_state = ALARM_STATE_NORMAL;
+    }
+
+    current_alarm_state = target_state;
+
+    switch (current_alarm_state) {
+    case ALARM_STATE_NORMAL:
+        alarm_pin_level = GPIO_PIN_RESET;
+        HAL_GPIO_WritePin(ALARM_PORT, ALARM_PIN, GPIO_PIN_RESET);
+        break;
+
+    case ALARM_STATE_HIGH_HUMIDITY:
+        alarm_pin_level = GPIO_PIN_SET;
+        HAL_GPIO_WritePin(ALARM_PORT, ALARM_PIN, GPIO_PIN_SET);
+        break;
+
+    case ALARM_STATE_DHT_FAULT:
+    default:
+        /* Nhấp nháy chu kỳ 250 ms (2 Hz) */
+        if ((now_ms - last_alarm_toggle_ms) >= 250u) {
+            last_alarm_toggle_ms = now_ms;
+            alarm_pin_level = (alarm_pin_level == GPIO_PIN_SET) ? GPIO_PIN_RESET : GPIO_PIN_SET;
+            HAL_GPIO_WritePin(ALARM_PORT, ALARM_PIN, alarm_pin_level);
+        }
+        break;
+    }
 }
 
 /*==================== Cấp dữ liệu cho UI ====================*/
 
-/**
- * @brief Sao trạng thái sang dạng mà ui.c cần để vẽ một khung hình.
- *
- * UI giữ struct riêng để đổi bố cục màn hình không kéo theo sửa phần logic và
- * ngược lại.
- */
 static void Fill_UI_Data(UI_Data_t *out)
 {
     uint8_t i;
@@ -394,31 +467,57 @@ static void Fill_UI_Data(UI_Data_t *out)
         out->output_on[i] = output_on[i];
     }
 
-    /* UI chỉ cần "cách đây bao lâu", không cần mốc tuyệt đối. Quy đổi ở đây để
-     * UI khỏi phải tự trừ tick và tự lo chuyện tràn uint32_t. */
     out->sensor_valid = sensor_valid;
+    out->dht_health_ok = Health_Monitor_IsDHTHealthy(&health_mon);
     out->sensor_age_s = sensor_valid ? ((HAL_GetTick() - last_sensor_ok_ms) / 1000u) : 0u;
+    out->auth_owner = Auth_GetOwner();
+    out->alarm_state = current_alarm_state;
 }
 
-/*==================== Handler của từng lệnh ====================*/
+/*==================== Handler của từng lệnh Bluetooth ====================*/
 
-/* ON và OFF dùng chung Command_SetOutputs(): từ khi biết tách số kênh và "ALL",
- * phần thân đã dài đủ để chép đôi thành nợ. TEMP/HUM thì vẫn để rời — mỗi hàm
- * chỉ có một dòng, gộp lại không lợi gì. */
+static void Command_LOGIN(char *return_msg, const char *args)
+{
+    bool                kicked = false;
+    Auth_Login_Result_t res;
 
-/**
- * @brief Thân chung của ON và OFF — chỉ khác nhau đúng một tham số `on`.
- *
- * Cú pháp tham số:
- *      (không có)  kênh 1, đúng như hành vi cũ khi mới có mỗi một ngõ ra. Giữ
- *                  nguyên để các app điện thoại đã cấu hình sẵn không phải sửa.
- *      "ALL"       cả OUT_COUNT kênh
- *      "1".."5"    một kênh
- */
+    if (args == NULL) {
+        (void)snprintf(return_msg, COMMAND_RETURN_MSG_SIZE, "LOGIN_FAIL\r\n");
+        return;
+    }
+
+    res = Auth_Login(AUTH_BLE, args, &kicked);
+    if (res == AUTH_LOGIN_OK) {
+        (void)snprintf(return_msg, COMMAND_RETURN_MSG_SIZE, "LOGIN_OK\r\n");
+    } else if (res == AUTH_LOGIN_BUSY_LOCAL) {
+        (void)snprintf(return_msg, COMMAND_RETURN_MSG_SIZE, "LOGIN_BUSY_LOCAL\r\n");
+    } else {
+        (void)snprintf(return_msg, COMMAND_RETURN_MSG_SIZE, "LOGIN_FAIL\r\n");
+    }
+}
+
+static void Command_LOGOUT(char *return_msg, const char *args)
+{
+    (void)args;
+    if (Auth_Logout(AUTH_BLE)) {
+        (void)snprintf(return_msg, COMMAND_RETURN_MSG_SIZE, "LOGOUT_OK\r\n");
+    } else {
+        (void)snprintf(return_msg, COMMAND_RETURN_MSG_SIZE, "ERR_NOT_OWNER\r\n");
+    }
+}
+
 static void Command_SetOutputs(char *return_msg, const char *args, bool on)
 {
     const char *state_text = on ? "ON" : "OFF";
-    uint8_t channel;
+    uint8_t     channel;
+
+    /* Quyền: chỉ chủ sở hữu AUTH_BLE mới được điều khiển GPIO */
+    if (!Auth_IsOwner(AUTH_BLE)) {
+        (void)snprintf(return_msg, COMMAND_RETURN_MSG_SIZE, "ERR_LOCKED\r\n");
+        return;
+    }
+
+    Auth_NotifyActivity(AUTH_BLE);
 
     if (args == NULL) {
         Set_Output(0u, on);
@@ -434,8 +533,7 @@ static void Command_SetOutputs(char *return_msg, const char *args, bool on)
         return;
     }
 
-    /* Số kênh người dùng gõ là 1..N; bên trong đánh số từ 0. Chỉ nhận đúng một
-     * chữ số rồi hết chuỗi — "1X" hay "12" đều là gõ nhầm chứ không phải kênh 1. */
+    /* 4 kênh: '1'..'4' */
     if ((args[0] < '1') || (args[0] > '0' + (char)OUT_COUNT) || (args[1] != '\0')) {
         (void)snprintf(return_msg, COMMAND_RETURN_MSG_SIZE, "BAD_CHANNEL\r\n");
         return;
@@ -460,18 +558,27 @@ static void Command_OFF(char *return_msg, const char *args)
 static void Command_STATUS(char *return_msg, const char *args)
 {
     (void)args;
+    if (Auth_IsOwner(AUTH_BLE)) {
+        Auth_NotifyActivity(AUTH_BLE);
+    }
     Format_Status(return_msg, COMMAND_RETURN_MSG_SIZE);
 }
 
 static void Command_TEMP(char *return_msg, const char *args)
 {
     (void)args;
+    if (Auth_IsOwner(AUTH_BLE)) {
+        Auth_NotifyActivity(AUTH_BLE);
+    }
     (void)snprintf(return_msg, COMMAND_RETURN_MSG_SIZE, "TEMP=%uC\r\n", (unsigned)last_temp);
 }
 
 static void Command_HUM(char *return_msg, const char *args)
 {
     (void)args;
+    if (Auth_IsOwner(AUTH_BLE)) {
+        Auth_NotifyActivity(AUTH_BLE);
+    }
     (void)snprintf(return_msg, COMMAND_RETURN_MSG_SIZE, "HUM=%u%%\r\n", (unsigned)last_humidity);
 }
 
@@ -563,6 +670,13 @@ static void MX_GPIO_Init(void)
     gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(HEARTBEAT_LED_PORT, &gpio_init);
 
+    /* PA8 — Chân cảnh báo tự động ALARM (active HIGH) */
+    gpio_init.Pin = ALARM_PIN;
+    gpio_init.Mode = GPIO_MODE_OUTPUT_PP;
+    gpio_init.Pull = GPIO_NOPULL;
+    gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(ALARM_PORT, &gpio_init);
+
     /* PA5..PA7 và PB0/PB1 — 5 nút nhấn. Pull-up nội, nút kéo xuống GND nên mức
      * nghỉ là CAO. Không cần điện trở ngoài.
      *
@@ -593,9 +707,10 @@ static void MX_GPIO_Init(void)
     HAL_NVIC_SetPriority(BTN5_EXTI_IRQn, BTN_EXTI_PRIO, 0);
     HAL_NVIC_EnableIRQ(BTN5_EXTI_IRQn);
 
-    /* 5 chân ngõ ra (PA8/PB12..PB15) và PA4 (DHT11) cố tình KHÔNG cấu hình ở
+    /* 4 chân ngõ ra (PB12..PB15) và PA4 (DHT11) cố tình KHÔNG cấu hình ở
      * đây: Digital_Out_Init() và DHT11_Init() tự lo, vì chân DHT11 phải đổi
-     * qua lại giữa output OD và input EXTI lúc chạy. */
+     * qua lại giữa output OD và input EXTI lúc chạy. Chân PA8 (ALARM) đã được
+     * cấu hình output push-pull ở trên. */
 }
 
 static void MX_USART2_UART_Init(void)

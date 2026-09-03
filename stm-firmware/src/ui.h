@@ -18,28 +18,40 @@
 #ifndef UI_H
 #define UI_H
 
+#include "auth.h"
 #include "main.h"
 
 #include <stdbool.h>
+
+typedef enum {
+    ALARM_STATE_NORMAL = 0,
+    ALARM_STATE_HIGH_HUMIDITY,
+    ALARM_STATE_DHT_FAULT
+} UI_AlarmState_t;
 
 /* Ảnh chụp trạng thái hệ thống mà UI cần để vẽ một khung hình. Tầng app dựng
  * đầy rồi truyền xuống, UI không tự đọc phần cứng. */
 typedef struct {
     /* DHT11 chỉ có độ phân giải 1 độ C / 1 % — nó luôn phát byte thập phân
      * bằng 0. Không lưu phần thập phân ở đây để khỏi hiển thị ".0" giả. */
-    uint8_t temperature_c;          /* Nhiệt độ (độ C) */
-    uint8_t humidity_pct;           /* Độ ẩm (%) */
-    bool    output_on[OUT_COUNT];   /* Trạng thái 5 kênh ngõ ra */
-    bool    heartbeat_led_on;       /* true = LED PC13 đang sáng */
-    bool    bluetooth_connected;    /* true = đã bắt tay được với module BT */
-    bool    sensor_valid;           /* true = đã từng đọc DHT11 thành công */
-    uint32_t sensor_age_s;          /* Số giây kể từ lần đọc thành công cuối */
+    uint8_t         temperature_c;        /* Nhiệt độ (độ C) */
+    uint8_t         humidity_pct;         /* Độ ẩm (%) */
+    bool            output_on[OUT_COUNT]; /* Trạng thái 4 kênh ngõ ra */
+    bool            heartbeat_led_on;     /* true = LED PC13 đang sáng */
+    bool            bluetooth_connected;  /* true = đã bắt tay được với module BT */
+    bool            sensor_valid;         /* true = đã từng đọc DHT11 thành công ít nhất 1 lần */
+    bool            dht_health_ok;        /* true = cảm biến đang tốt; false = lỗi/quá hạn */
+    uint32_t        sensor_age_s;         /* Số giây kể từ lần đọc thành công cuối */
+    Auth_Owner_t    auth_owner;           /* AUTH_NONE, AUTH_LOCAL, AUTH_BLE */
+    UI_AlarmState_t alarm_state;          /* NORMAL, HIGH_HUMIDITY, DHT_FAULT */
 } UI_Data_t;
 
 /* Việc UI muốn tầng app làm sau khung hình vừa vẽ. */
 typedef struct {
-    bool    toggle_output;   /* true = xin đảo trạng thái một kênh */
-    uint8_t channel;         /* Kênh cần đảo, 0..OUT_COUNT-1 */
+    bool    toggle_output; /* true = xin đảo trạng thái một kênh */
+    uint8_t channel;       /* Kênh cần đảo, 0..OUT_COUNT-1 */
+    bool    local_login;   /* true = người dùng đăng nhập thành công bằng keypad */
+    bool    user_activity; /* true = có thao tác nút của user để gia hạn timeout */
 } UI_Request_t;
 
 /**
