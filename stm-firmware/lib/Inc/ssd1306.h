@@ -1,5 +1,5 @@
 /**
- * @file SSD1306.h
+ * @file ssd1306.h
  * @brief Driver cho màn hình OLED SSD1306 (I2C) trên STM32 HAL: gồm lớp giao
  * tiếp phần cứng (gửi lệnh/dữ liệu qua I2C), lớp framebuffer (vẽ trong RAM)
  * và lớp văn bản (vẽ ký tự/chuỗi dùng font5x7).

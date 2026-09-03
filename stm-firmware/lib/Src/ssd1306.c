@@ -1,9 +1,9 @@
 /**
- * @file SSD1306.c
+ * @file ssd1306.c
  * @brief Cài đặt driver SSD1306: lớp giao tiếp I2C, lớp framebuffer (vẽ
  * trong RAM) và lớp văn bản (vẽ ký tự/chuỗi dùng font5x7).
  */
-#include "SSD1306.h"
+#include "ssd1306.h"
 #include "font5x7.h"
 #include "stm32f1xx_hal_def.h"
 #include "stm32f1xx_hal_i2c.h"
@@ -13,7 +13,7 @@
 	0x3C << 1 // Địa chỉ I2C của SSD1306 (thường là 0x3C hoặc 0x3D)
 
 
-/** @brief Khởi tạo chip SSD1306 (xem SSD1306.h). */
+/** @brief Khởi tạo chip SSD1306 (xem ssd1306.h). */
 HAL_StatusTypeDef SSD1306_Init (I2C_HandleTypeDef* hi2c) {
 	// Mảng lệnh khởi tạo SSD1306 (128x64)
 	uint8_t ssd1306_init_cmds[] = {
@@ -40,13 +40,13 @@ HAL_StatusTypeDef SSD1306_Init (I2C_HandleTypeDef* hi2c) {
 	sizeof (ssd1306_init_cmds), HAL_MAX_DELAY);
 }
 
-/** @brief Gửi 1 byte lệnh tới chip (xem SSD1306.h). */
+/** @brief Gửi 1 byte lệnh tới chip (xem ssd1306.h). */
 HAL_StatusTypeDef SSD1306_SendCommand (I2C_HandleTypeDef* hi2c, uint8_t command) {
 	uint8_t cmd[2] = { 0x00, command }; // 0x00 là byte điều khiển cho lệnh
 	return HAL_I2C_Master_Transmit (hi2c, SSD1306_I2C_ADDRESS, cmd, 2, HAL_MAX_DELAY);
 }
 
-/** @brief Gửi khối dữ liệu pixel tới GDDRAM (xem SSD1306.h). */
+/** @brief Gửi khối dữ liệu pixel tới GDDRAM (xem ssd1306.h). */
 HAL_StatusTypeDef SSD1306_SendData (I2C_HandleTypeDef* hi2c, uint8_t* data, size_t size) {
 	// Control byte 0x40 đóng vai trò "địa chỉ thanh ghi": HAL tự chèn nó vào
 	// trước khối dữ liệu, báo cho chip biết các byte sau là dữ liệu GDDRAM.
@@ -59,17 +59,17 @@ HAL_StatusTypeDef SSD1306_SendData (I2C_HandleTypeDef* hi2c, uint8_t* data, size
  * ======================================================================= */
 
 /* ---------------- Điều khiển display (không đụng buffer) ---------------- */
-/** @brief Bật display (xem SSD1306.h). */
+/** @brief Bật display (xem ssd1306.h). */
 HAL_StatusTypeDef SSD1306_DisplayOn (I2C_HandleTypeDef* hi2c) {
 	return SSD1306_SendCommand (hi2c, SSD1306_DISPLAYON);
 }
 
-/** @brief Tắt display (xem SSD1306.h). */
+/** @brief Tắt display (xem ssd1306.h). */
 HAL_StatusTypeDef SSD1306_DisplayOff (I2C_HandleTypeDef* hi2c) {
 	return SSD1306_SendCommand (hi2c, SSD1306_DISPLAYOFF);
 }
 
-/** @brief Đặt độ tương phản (xem SSD1306.h). */
+/** @brief Đặt độ tương phản (xem ssd1306.h). */
 HAL_StatusTypeDef SSD1306_SetContrast (I2C_HandleTypeDef* hi2c, uint8_t value) {
 	// Lệnh 2 byte: mã lệnh rồi tới giá trị contrast.
 	if (SSD1306_SendCommand (hi2c, SSD1306_SETCONTRAST) != HAL_OK)
@@ -77,13 +77,13 @@ HAL_StatusTypeDef SSD1306_SetContrast (I2C_HandleTypeDef* hi2c, uint8_t value) {
 	return SSD1306_SendCommand (hi2c, value);
 }
 
-/** @brief Đảo màu toàn màn hình (xem SSD1306.h). */
+/** @brief Đảo màu toàn màn hình (xem ssd1306.h). */
 HAL_StatusTypeDef SSD1306_InvertDisplay (I2C_HandleTypeDef* hi2c, uint8_t invert) {
 	return SSD1306_SendCommand (
 	hi2c, invert ? SSD1306_INVERTDISPLAY : SSD1306_NORMALDISPLAY);
 }
 
-/** @brief Đặt con trỏ ghi GDDRAM (xem SSD1306.h). */
+/** @brief Đặt con trỏ ghi GDDRAM (xem ssd1306.h). */
 HAL_StatusTypeDef SSD1306_SetCursor (I2C_HandleTypeDef* hi2c, uint8_t x, uint8_t page) {
 	// Page addressing mode: 3 lệnh liên tiếp, cột 7-bit tách làm nửa thấp/cao.
 	if (SSD1306_SendCommand (hi2c, SSD1306_SETPAGE | page) != HAL_OK)
@@ -95,20 +95,20 @@ HAL_StatusTypeDef SSD1306_SetCursor (I2C_HandleTypeDef* hi2c, uint8_t x, uint8_t
 
 /* ---------------- Framebuffer (chỉ sửa RAM, không I2C) ---------------- */
 
-/** @brief Tô toàn bộ buffer bằng 1 màu (xem SSD1306.h). */
+/** @brief Tô toàn bộ buffer bằng 1 màu (xem ssd1306.h). */
 void SSD1306_Fill (ssd1306_t* ssd, SSD1306_COLOR color) {
 	// TODO: memset ssd->buffer bằng 0x00 (đen) hoặc 0xFF (trắng) tuỳ color
 	memset (ssd->buffer, (color == SSD1306_COLOR_WHITE) ? 0xFF : 0x00,
 	sizeof (ssd->buffer));
 }
 
-/** @brief Xoá buffer (= Fill màu đen) (xem SSD1306.h). */
+/** @brief Xoá buffer (= Fill màu đen) (xem ssd1306.h). */
 void SSD1306_Clear (ssd1306_t* ssd) {
 	// TODO: gọi lại SSD1306_Fill(ssd, SSD1306_COLOR_BLACK)
 	SSD1306_Fill (ssd, SSD1306_COLOR_BLACK);
 }
 
-/** @brief Bật/tắt 1 điểm ảnh tại (x, y) (xem SSD1306.h). */
+/** @brief Bật/tắt 1 điểm ảnh tại (x, y) (xem ssd1306.h). */
 void SSD1306_DrawPixel (ssd1306_t* ssd, uint16_t x, uint16_t y, SSD1306_COLOR color) {
 	// Kiểm tra vị trí pixel (x, y) hợp lệ. Nếu hợp lệ thì ghi vào buffer.
 	if (x >= ssd->width || y >= ssd->height)
@@ -122,7 +122,7 @@ void SSD1306_DrawPixel (ssd1306_t* ssd, uint16_t x, uint16_t y, SSD1306_COLOR co
 	}
 }
 
-/** @brief Vẽ bitmap 1-bit vào buffer (xem SSD1306.h). */
+/** @brief Vẽ bitmap 1-bit vào buffer (xem ssd1306.h). */
 void SSD1306_DrawBitmap (ssd1306_t* ssd,
 uint16_t x,
 uint16_t y,
@@ -146,7 +146,7 @@ SSD1306_COLOR color) {
 	}
 }
 
-/** @brief Tô đặc hình chữ nhật vào buffer (xem SSD1306.h). */
+/** @brief Tô đặc hình chữ nhật vào buffer (xem ssd1306.h). */
 void SSD1306_FillRect (ssd1306_t* ssd,
 uint16_t x,
 uint16_t y,
@@ -160,7 +160,7 @@ SSD1306_COLOR color) {
 	}
 }
 
-/** @brief Vẽ khung viền 1 pixel vào buffer (xem SSD1306.h). */
+/** @brief Vẽ khung viền 1 pixel vào buffer (xem ssd1306.h). */
 void SSD1306_DrawRect (ssd1306_t* ssd,
 uint16_t x,
 uint16_t y,
@@ -180,7 +180,7 @@ SSD1306_COLOR color) {
 	}
 }
 
-/** @brief Đẩy buffer sang GDDRAM của chip qua I2C (xem SSD1306.h). */
+/** @brief Đẩy buffer sang GDDRAM của chip qua I2C (xem ssd1306.h). */
 HAL_StatusTypeDef SSD1306_UpdateScreen (I2C_HandleTypeDef* hi2c, ssd1306_t* ssd) {
 	// Khoanh vùng ghi: SSD1306_COLUMNADDR và SSD1306_PAGEADDR mỗi lệnh nhận
 	// thêm 2 tham số là chỉ số bắt đầu và kết thúc của vùng.
@@ -198,7 +198,7 @@ HAL_StatusTypeDef SSD1306_UpdateScreen (I2C_HandleTypeDef* hi2c, ssd1306_t* ssd)
 
 /* ---------------- Văn bản (cần bảng font ngoài, VD font5x7.h) ---------------- */
 
-/** @brief Vẽ 1 ký tự vào buffer, trả về bề rộng vừa vẽ (xem SSD1306.h). */
+/** @brief Vẽ 1 ký tự vào buffer, trả về bề rộng vừa vẽ (xem ssd1306.h). */
 uint8_t SSD1306_WriteChar (ssd1306_t* ssd, uint16_t x, uint16_t y, char ch, SSD1306_COLOR color) {
 	const uint8_t* glyph = font5x7_get_glyph (ch);
 	if (glyph == NULL)
@@ -207,7 +207,7 @@ uint8_t SSD1306_WriteChar (ssd1306_t* ssd, uint16_t x, uint16_t y, char ch, SSD1
 	return FONT5X7_WIDTH + 1; // +1 cột khoảng cách giữa các ký tự
 }
 
-/** @brief Vẽ chuỗi ký tự, tự xuống dòng khi chạm mép phải (xem SSD1306.h). */
+/** @brief Vẽ chuỗi ký tự, tự xuống dòng khi chạm mép phải (xem ssd1306.h). */
 void SSD1306_WriteString (ssd1306_t* ssd, uint16_t x, uint16_t y, const char* str, SSD1306_COLOR color) {
 	uint16_t cursor_x = x;
 	uint16_t cursor_y = y;

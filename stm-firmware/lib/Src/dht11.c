@@ -1,12 +1,12 @@
 /*
- * DHT11.c — Driver DHT11 cho STM32F103.
+ * dht11.c — Driver DHT11 cho STM32F103.
  *
  * Toàn bộ việc bắt nhịp nằm trong ngắt: EXTI đo độ rộng xung giữa hai sườn
  * xuống, TIM2 vừa là đồng hồ micro-giây vừa là watchdog. Vòng lặp chính chỉ
  * gọi DHT11_StartRequest() rồi hỏi DHT11_ReadData() cho tới khi FSM báo xong.
  */
 
-#include "DHT11.h"
+#include "dht11.h"
 
 /* Ngưỡng phân loại độ rộng xung (micro-giây), đo từ sườn xuống trước đó.
  * Theo datasheet: bit 0 ~ 76 us, bit 1 ~ 120 us, nhịp mồi ~ 160 us. */

@@ -179,8 +179,8 @@ Hai biện pháp giảm tác động:
 | `BTN_DEBOUNCE_MS` | 25 | `pin_config.h:155` | Chống dội phím |
 | `UART_FRAME_IDLE_TIMEOUT_MS` | 250 | `uart.h:28` | Tự chốt khung khi app không gửi CR/LF |
 | `UART_LINK_TIMEOUT_MS` | 10000 | `uart.h:31` | Coi như mất kết nối Bluetooth |
-| `DHT11_START_LOW_TIME_US` | 18000 | `DHT11.h:39` | Độ dài lệnh Start |
-| `DHT11_WATCHDOG_US` | 500 | `DHT11.c:19` | Watchdog trong phiên đo |
+| `DHT11_START_LOW_TIME_US` | 18000 | `dht11.h:39` | Độ dài lệnh Start |
+| `DHT11_WATCHDOG_US` | 500 | `dht11.c:19` | Watchdog trong phiên đo |
 | `TIM2_COUNTER_FREQ_HZ` | 1000000 | `main.c:45` | Tần số bộ đếm µs |
 
 **Không có hằng số timing nào nằm rải rác trong code** — mọi con số đều có tên và đều nằm ở

@@ -10,8 +10,8 @@ Thư mục này để trống, chờ khung unit test chạy trên host (Unity + 
 
 | Module | Ca test cần có |
 |---|---|
-| `Ring_Buffer.c` | Ghi/đọc bình thường, ghi khi đầy, đọc khi rỗng, quay vòng |
-| `Command_Selector.c` | `ON`, `ON 3`, `ONLINE`, `on`, chuỗi rỗng, lệnh ngoài bảng |
+| `ring_buffer.c` | Ghi/đọc bình thường, ghi khi đầy, đọc khi rỗng, quay vòng |
+| `command_selector.c` | `ON`, `ON 3`, `ONLINE`, `on`, chuỗi rỗng, lệnh ngoài bảng |
 | `uart.c` — `Text_Filting` / `Frame_Building` | CR, LF, CRLF, backspace, khung tràn, khung rỗng |
 
 Lưu ý: thư mục này **không** nằm trong `file(GLOB_RECURSE ...)` của `CMakeLists.txt`, nên

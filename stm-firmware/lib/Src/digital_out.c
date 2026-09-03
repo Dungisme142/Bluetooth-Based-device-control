@@ -1,5 +1,5 @@
-/* Digital_Out.c — Một ngõ ra số trên một chân GPIO push-pull. */
-#include "Digital_Out.h"
+/* digital_out.c — Một ngõ ra số trên một chân GPIO push-pull. */
+#include "digital_out.h"
 
 #include <stddef.h>
 

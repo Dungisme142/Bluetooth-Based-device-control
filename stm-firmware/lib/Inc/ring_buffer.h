@@ -1,5 +1,5 @@
 /*
- * Ring_Buffer.h — Bộ đệm vòng tổng quát cho phần tử có kích thước bất kỳ.
+ * ring_buffer.h — Bộ đệm vòng tổng quát cho phần tử có kích thước bất kỳ.
  *
  * Không dính gì tới ngữ cảnh dùng nên giữ là module riêng: hiện cả cụm UART
  * lẫn tầng ứng dụng đều dùng, và bê sang project khác được nguyên vẹn.
@@ -11,7 +11,7 @@
 #ifndef RING_BUFFER_H_
 #define RING_BUFFER_H_
 
-#include "Global_Enum.h"
+#include "global_enum.h"
 #include <stdint.h>
 
 typedef enum {

@@ -1,5 +1,5 @@
 /*
- * Command_Selector.c — CƠ CHẾ tra bảng lệnh: khớp tên lệnh, tách tham số,
+ * command_selector.c — CƠ CHẾ tra bảng lệnh: khớp tên lệnh, tách tham số,
  * gọi handler tương ứng.
  *
  * NỘI DUNG bảng lệnh (Command_Menu[] và các handler) nằm ở src/app_command.c.
@@ -7,9 +7,9 @@
  * ở đây thì file trong lib/ buộc phải biết tới tầng app và mất khả năng dùng lại.
  */
 
-#include "Command_Selector.h"
+#include "command_selector.h"
 
-#include "Global_Enum.h"
+#include "global_enum.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>

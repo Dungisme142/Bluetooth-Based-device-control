@@ -32,7 +32,7 @@ cạnh.
 
 ## 8.2 Ngưỡng phân loại xung
 
-Đo bằng TIM2 ở 1 MHz, đơn vị micro-giây (`DHT11.c:11-19`):
+Đo bằng TIM2 ở 1 MHz, đơn vị micro-giây (`dht11.c:11-19`):
 
 | Hằng số | Giá trị | Ý nghĩa |
 |---|---|---|
@@ -84,7 +84,7 @@ lỗi ngay lúc khởi động thay vì làm sai lặng lẽ toàn bộ timing c
 
 ## 8.5 Chuyển chân giữa hai chế độ
 
-`DHT11_SetOutput()` (`DHT11.c:105`) làm ba việc **theo đúng thứ tự** trước khi đổi mode:
+`DHT11_SetOutput()` (`dht11.c:105`) làm ba việc **theo đúng thứ tự** trước khi đổi mode:
 
 ```c
 HAL_NVIC_DisableIRQ(dht_cfg.IRQn);
@@ -96,7 +96,7 @@ Lý do: HAL **không tự gỡ EXTI mask** khi chuyển một chân từ `IT_FAL
 không che tay, chính MCU sẽ tự kích ngắt EXTI ngay lúc nó kéo bus xuống LOW để phát lệnh
 Start — và ISR sẽ bắt đầu "giải mã" tín hiệu do chính nó tạo ra.
 
-`DHT11_SetInput()` (`DHT11.c:86`) đi chiều ngược lại: cấu hình `IT_FALLING` + pull-up nội,
+`DHT11_SetInput()` (`dht11.c:86`) đi chiều ngược lại: cấu hình `IT_FALLING` + pull-up nội,
 **xoá cờ ngắt cũ rồi mới** cho phép ngắt trên NVIC.
 
 ## 8.6 Cách tầng ứng dụng gọi

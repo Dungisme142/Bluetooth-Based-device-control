@@ -16,7 +16,7 @@
  */
 #include "ui.h"
 
-#include "SSD1306.h"
+#include "ssd1306.h"
 
 #include <stdbool.h>
 #include <stdio.h>

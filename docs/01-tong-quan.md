@@ -58,14 +58,14 @@ Dự án được thiết kế để chạm vào các chủ đề chính của m
 
 | Chủ đề | Thể hiện ở đâu |
 |---|---|
-| GPIO ngõ ra, đảo cực tính | `Digital_Out.c`, `output_on_state[]` trong `main.c` |
+| GPIO ngõ ra, đảo cực tính | `digital_out.c`, `output_on_state[]` trong `main.c` |
 | Ngắt ngoài EXTI, phân bổ vector | 5 nút + DHT11, xem [04](04-so-do-chan.md) §4.3 |
 | Chống dội phím bằng phần mềm | `UI_SampleButton()` trong `ui.c` |
 | UART theo ngắt (không blocking) | `HAL_UART_Receive_IT` + `HAL_UART_Transmit_IT` |
-| Cấu trúc dữ liệu bộ đệm vòng | `Ring_Buffer.c`, một người ghi / một người đọc |
+| Cấu trúc dữ liệu bộ đệm vòng | `ring_buffer.c`, một người ghi / một người đọc |
 | Máy trạng thái (FSM) | Driver DHT11, xem [08](08-dac-ta-cam-bien-dht11.md) |
 | Timer làm đồng hồ micro-giây + watchdog | TIM2 ở 1 MHz |
-| I2C và driver màn hình đồ hoạ | `SSD1306.c` + framebuffer |
+| I2C và driver màn hình đồ hoạ | `ssd1306.c` + framebuffer |
 | Bảng con trỏ hàm | `Command_Menu[]` + `Command_Selecting()` |
 | Thiết kế superloop không chặn | Vòng lặp chính trong `main.c`, xem [09](09-timing-va-ngat.md) |
 | Ưu tiên ngắt và phân tích timing | [09](09-timing-va-ngat.md) |

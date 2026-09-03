@@ -1,5 +1,5 @@
 /*
- * Global_Enum.h — Các kiểu liệt kê dùng chung cho mọi module.
+ * global_enum.h — Các kiểu liệt kê dùng chung cho mọi module.
  *
  * Chỉ đặt ở đây những enum mà từ hai module trở lên cần tới. Enum riêng của
  * một module thì để trong header của module đó.

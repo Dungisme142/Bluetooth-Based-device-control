@@ -1,7 +1,7 @@
 #ifndef DHT11_H
 #define DHT11_H
 
-#include "Global_Enum.h"
+#include "global_enum.h"
 #include "stm32f1xx_hal.h"
 #include <stdbool.h>
 

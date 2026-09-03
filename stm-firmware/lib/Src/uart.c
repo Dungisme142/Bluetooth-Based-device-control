@@ -10,9 +10,9 @@
 
 #include "uart.h"
 
-#include "Command_Selector.h"
-#include "Global_Enum.h"
-#include "Ring_Buffer.h"
+#include "command_selector.h"
+#include "global_enum.h"
+#include "ring_buffer.h"
 #include "stm32f1xx_hal.h"
 #include <stdarg.h>
 #include <stdint.h>

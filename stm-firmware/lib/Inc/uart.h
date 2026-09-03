@@ -13,8 +13,8 @@
 #ifndef UART_H_
 #define UART_H_
 
-#include "Global_Enum.h"
-#include "Ring_Buffer.h"
+#include "global_enum.h"
+#include "ring_buffer.h"
 #include "stm32f1xx_hal.h"
 #include <stdbool.h>
 #include <stdint.h>

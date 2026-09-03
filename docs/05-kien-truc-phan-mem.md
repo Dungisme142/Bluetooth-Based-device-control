@@ -23,11 +23,11 @@ flowchart TD
     end
     subgraph LIB["Tầng driver — lib/"]
         UART["uart.c<br/>lọc ký tự, dựng khung"]
-        CMD["Command_Selector.c<br/>tra bảng lệnh"]
-        RB["Ring_Buffer.c"]
-        DHT["DHT11.c<br/>FSM 1-wire"]
-        DO["Digital_Out.c"]
-        OLEDDRV["SSD1306.c + font5x7.c"]
+        CMD["command_selector.c<br/>tra bảng lệnh"]
+        RB["ring_buffer.c"]
+        DHT["dht11.c<br/>FSM 1-wire"]
+        DO["digital_out.c"]
+        OLEDDRV["ssd1306.c + font5x7.c"]
         PC["pin_config.h<br/>bảng chân duy nhất"]
     end
     HAL["STM32F1xx HAL + CMSIS — Drivers/"]
@@ -58,13 +58,13 @@ thêm một tầng "app_xxx.c" mỏng chỉ để chuyển tiếp lời gọi s�
 | `src/stm32f1xx_it.c` | 111 | Bảng vector ngắt |
 | `src/sysmem.c` | 30 | `_sbrk` cho newlib |
 | `lib/uart.c/h` | ~313 | Lọc ký tự → dựng khung → phát lệnh → trả lời; theo dõi liên kết |
-| `lib/Command_Selector.c/h` | ~51 | **Cơ chế** tra bảng lệnh (nội dung bảng nằm ở `main.c`) |
-| `lib/Ring_Buffer.c/h` | ~120 | Bộ đệm vòng một-ghi/một-đọc |
-| `lib/DHT11.c/h` | ~306 | FSM đọc cảm biến 1-wire bằng ngắt |
-| `lib/Digital_Out.c/h` | ~40 | Một ngõ ra số generic theo {port, pin, state} |
-| `lib/SSD1306.c/h` + `font5x7.c/h` | ~400 | Framebuffer + vẽ hình/chữ + đẩy khung qua I2C |
+| `lib/command_selector.c/h` | ~51 | **Cơ chế** tra bảng lệnh (nội dung bảng nằm ở `main.c`) |
+| `lib/ring_buffer.c/h` | ~120 | Bộ đệm vòng một-ghi/một-đọc |
+| `lib/dht11.c/h` | ~306 | FSM đọc cảm biến 1-wire bằng ngắt |
+| `lib/digital_out.c/h` | ~40 | Một ngõ ra số generic theo {port, pin, state} |
+| `lib/ssd1306.c/h` + `font5x7.c/h` | ~400 | Framebuffer + vẽ hình/chữ + đẩy khung qua I2C |
 | `lib/pin_config.h` | 180 | Bảng chân duy nhất |
-| `lib/Global_Enum.h` | 19 | `Developer_Action_Result_t` (`DEV_SUCCESS` / `DEV_FAIL`) |
+| `lib/global_enum.h` | 19 | `Developer_Action_Result_t` (`DEV_SUCCESS` / `DEV_FAIL`) |
 
 ## 5.4 Vòng lặp chính
 

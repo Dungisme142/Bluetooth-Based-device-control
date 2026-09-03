@@ -7,16 +7,16 @@
  *      stm32f1xx_it.c     bảng vector ngắt
  *      sysmem.c           _sbrk cho newlib
  *
- * Mọi việc còn lại gọi thẳng driver trong lib/: uart.c (nhận lệnh), DHT11.c,
- * SSD1306.c (qua ui.c), Digital_Out.c, Ring_Buffer.c, Command_Selector.c.
+ * Mọi việc còn lại gọi thẳng driver trong lib/: uart.c (nhận lệnh), dht11.c,
+ * ssd1306.c (qua ui.c), digital_out.c, ring_buffer.c, command_selector.c.
  * Không có tầng trung gian nào giữa main.c và lib/.
  */
 #include "main.h"
 
-#include "Command_Selector.h"
-#include "DHT11.h"
-#include "Digital_Out.h"
-#include "Ring_Buffer.h"
+#include "command_selector.h"
+#include "dht11.h"
+#include "digital_out.h"
+#include "ring_buffer.h"
 #include "uart.h"
 #include "ui.h"
 
@@ -122,7 +122,7 @@ static void Command_AUTO(char *return_msg, const char *args);
 
 /*==================== Bảng lệnh Bluetooth ====================*/
 
-/* UART_Task() tra cứu bảng này qua khai báo extern trong Command_Selector.h.
+/* UART_Task() tra cứu bảng này qua khai báo extern trong command_selector.h.
  * Cố tình KHÔNG static: đây là phần "nội dung" mà tầng lib mong đợi app cấp.
  *
  * Thêm một lệnh mới = thêm một handler ở dưới và một dòng ở đây. Nhớ cập nhật
@@ -633,7 +633,7 @@ static void MX_I2C2_Init(void)
 
 /*
  * TIM2 làm đồng hồ micro-giây cho DHT11: bộ đếm PHẢI chạy đúng 1 MHz
- * (1 tick = 1 us) vì DHT11.c đo độ rộng xung trực tiếp bằng giá trị đếm.
+ * (1 tick = 1 us) vì dht11.c đo độ rộng xung trực tiếp bằng giá trị đếm.
  * Prescaler được tính từ clock thực tế thay vì ghi cứng, để đổi SYSCLK
  * không làm sai toàn bộ timing của cảm biến.
  */

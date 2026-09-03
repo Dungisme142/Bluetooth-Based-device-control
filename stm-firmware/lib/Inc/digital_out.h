@@ -1,5 +1,5 @@
 /*
- * Digital_Out.h — Một ngõ ra số, điều khiển bằng một chân GPIO push-pull.
+ * digital_out.h — Một ngõ ra số, điều khiển bằng một chân GPIO push-pull.
  *
  * Driver generic theo {port, pin, state}: dùng cho cả 5 kênh OUT-1..OUT-5.
  * Mạch không còn module relay nào — đây chỉ là mức logic đưa ra chân cắm,
@@ -8,7 +8,7 @@
 #ifndef DIGITAL_OUT_H
 #define DIGITAL_OUT_H
 
-#include "Global_Enum.h"
+#include "global_enum.h"
 #include "stm32f1xx_hal.h"
 
 typedef enum {

@@ -28,14 +28,14 @@ Dự án chạm vào các chủ đề chính của một khoá Embedded C:
 
 | Chủ đề | Thể hiện ở |
 | --- | --- |
-| GPIO ngõ ra, đảo cực tính | `Digital_Out.c` |
+| GPIO ngõ ra, đảo cực tính | `digital_out.c` |
 | Ngắt ngoài EXTI và phân bổ vector | 5 nút + bus DHT11 |
 | Chống dội phím bằng phần mềm | `UI_SampleButton()` |
 | UART theo ngắt, không blocking | `Receive_IT` + `Transmit_IT` |
-| Bộ đệm vòng một-ghi/một-đọc | `Ring_Buffer.c` |
+| Bộ đệm vòng một-ghi/một-đọc | `ring_buffer.c` |
 | Máy trạng thái (FSM) | Driver DHT11 |
 | Timer làm đồng hồ µs + watchdog | TIM2 @ 1 MHz |
-| I2C và driver màn hình đồ hoạ | `SSD1306.c` + framebuffer |
+| I2C và driver màn hình đồ hoạ | `ssd1306.c` + framebuffer |
 | Bảng con trỏ hàm | `Command_Menu[]` |
 | Thiết kế superloop không chặn | Vòng lặp chính |
 | Ưu tiên ngắt và phân tích timing | [docs/09](docs/09-timing-va-ngat.md) |
@@ -192,7 +192,7 @@ Hạn chế đáng chú ý nhất:
 - Chưa có unit test tự động — kiểm chứng hoàn toàn thủ công.
 
 Hướng đi tiếp, theo thứ tự ưu tiên: khung unit test chạy trên host (Unity + CTest) cho
-`Ring_Buffer` / `Command_Selector` / bộ dựng khung → hoàn thiện chế độ AUTO có hysteresis →
+`ring_buffer` / `command_selector` / bộ dựng khung → hoàn thiện chế độ AUTO có hysteresis →
 tách `main.c` thành module → lưu trạng thái vào flash → IWDG.
 
 → Danh sách đầy đủ kèm hệ quả và hướng khắc phục từng mục:

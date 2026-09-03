@@ -1,12 +1,12 @@
 /*
- * Command_Selector.h — Cơ chế tra bảng lệnh nhận qua đường truyền.
+ * command_selector.h — Cơ chế tra bảng lệnh nhận qua đường truyền.
  *
  * Bảng lệnh cụ thể là nội dung của tầng ứng dụng, không thuộc lib/.
  */
 #ifndef COMMAND_SELECTOR_H_
 #define COMMAND_SELECTOR_H_
 
-#include "Global_Enum.h"
+#include "global_enum.h"
 #include <stdint.h>
 
 /* Kích thước buffer trả lời cấp cho mỗi handler. Bên gọi (UART_Task) cấp phát

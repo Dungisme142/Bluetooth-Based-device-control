@@ -1,12 +1,12 @@
 /*
- * Ring_Buffer.c — Bộ đệm vòng một-người-ghi/một-người-đọc.
+ * ring_buffer.c — Bộ đệm vòng một-người-ghi/một-người-đọc.
  *
  * Write và Read cố tình đối xứng nhau và không gộp lại: hai hàm giống nhau về
  * hình thức nhưng thay đổi vì hai lý do khác nhau (một chạy trong ISR, một
  * chạy ở vòng lặp chính), gộp lại sẽ ràng buộc chúng vào nhau vô cớ.
  */
 
-#include "Ring_Buffer.h"
+#include "ring_buffer.h"
 
 #include <stddef.h>
 #include <stdint.h>

@@ -105,12 +105,12 @@ biên dịch và test được ngay trên PC bằng gcc thường:
 
 | Module | Phụ thuộc HAL? | Test được ngay? |
 |---|---|---|
-| `Ring_Buffer.c` | Không | ✅ |
-| `Command_Selector.c` | Không | ✅ |
+| `ring_buffer.c` | Không | ✅ |
+| `command_selector.c` | Không | ✅ |
 | `uart.c` — phần `Text_Filting`/`Frame_Building` | Chỉ ở phần I/O | ✅ sau khi tách |
-| `Digital_Out.c` | Có | Cần giả lập HAL |
-| `DHT11.c` | Có (timer + GPIO) | Cần giả lập HAL |
-| `SSD1306.c` | Có (I2C) | Cần giả lập HAL |
+| `digital_out.c` | Có | Cần giả lập HAL |
+| `dht11.c` | Có (timer + GPIO) | Cần giả lập HAL |
+| `ssd1306.c` | Có (I2C) | Cần giả lập HAL |
 
 Đề xuất: dùng **Unity** (chỉ 3 file, không cần cài đặt), thêm một `CMakeLists.txt` riêng cho
 build host với `enable_testing()` + CTest. Danh sách ca test cụ thể đã liệt kê ở
