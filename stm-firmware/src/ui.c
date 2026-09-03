@@ -27,36 +27,45 @@ void Error_Handler(void);
 
 /*==================== Hằng số bố cục ====================*/
 
-#define UI_HEADER_HEIGHT     11u   /* Chiều cao thanh tiêu đề */
-#define UI_TEXT_PAD_X         2u   /* Lề trái của chữ */
-#define UI_HEADER_TEXT_Y      2u   /* Chữ trong thanh tiêu đề */
-#define UI_RIGHT_EDGE_X     126u   /* Mép phải dùng khi căn lề phải */
+#define UI_HEADER_HEIGHT 11u  /* Chiều cao thanh tiêu đề */
+#define UI_TEXT_PAD_X    2u   /* Lề trái của chữ */
+#define UI_HEADER_TEXT_Y 2u   /* Chữ trong thanh tiêu đề */
+#define UI_RIGHT_EDGE_X  126u /* Mép phải dùng khi căn lề phải */
 
 /* Danh sách 5 dòng (trang OUTPUTS, LOG, HƯỚNG DẪN) */
-#define UI_LIST_ROW0_Y       13u
-#define UI_LIST_ROW_SPACING  10u
-#define UI_LIST_ROWS          5u
+#define UI_LIST_ROW0_Y      13u
+#define UI_LIST_ROW_SPACING 10u
+#define UI_LIST_ROWS        5u
 
-#define UI_TEXT_LEN          24u   /* Đủ cho 21 ký tự vừa bề ngang màn hình */
+#define UI_TEXT_LEN 24u /* Đủ cho 21 ký tự vừa bề ngang màn hình */
 
 /* Ô trạng thái của từng kênh trên trang HOME */
-#define UI_CELL_SIZE         10u
-#define UI_CELL_FIRST_X      14u
-#define UI_CELL_PITCH_X      22u
-#define UI_CELL_Y            43u
-#define UI_CELL_INSET         2u   /* Viền chừa lại khi ô được tô đặc */
-#define UI_CELL_FOCUS_PAD     2u   /* Khoảng cách từ ô tới khung chọn */
+#define UI_CELL_SIZE      10u
+#define UI_CELL_FIRST_X   14u
+#define UI_CELL_PITCH_X   22u
+#define UI_CELL_Y         43u
+#define UI_CELL_INSET     2u /* Viền chừa lại khi ô được tô đặc */
+#define UI_CELL_FOCUS_PAD 2u /* Khoảng cách từ ô tới khung chọn */
 
 /* Chu kỳ vẽ lại màn hình khi không ai bấm nút (ms) */
 #define UI_REFRESH_PERIOD_MS 500u
 
 /* Thang đo của thanh mức nhiệt độ. Độ ẩm dùng thẳng phần trăm nên không cần. */
-#define UI_TEMP_SCALE_MAX_C  50u
+#define UI_TEMP_SCALE_MAX_C 50u
+
+/* Keypad page */
+#define KEYPAD_HEADER_PADDING 2u
+
+// Keypad
+#define PIN_LEN 4u
+static uint8_t ui_keypad_id = 0u;
 
 /*==================== Trạng thái module ====================*/
 
 typedef enum {
-    UI_PAGE_HOME = 0,
+    UI_PAGE_LOCK = 0,
+    UI_PAGE_LOGGIN,
+    UI_PAGE_HOME,
     UI_PAGE_OUTPUTS,
     UI_PAGE_SENSOR,
     UI_PAGE_LOG,
@@ -74,23 +83,23 @@ typedef enum {
 } UI_Event_t;
 
 /* Số nút vật lý — bằng số mục của button_map[] trong UI_HandleButtonIrq() */
-#define UI_BUTTON_COUNT       5u
+#define UI_BUTTON_COUNT 5u
 
 /* Hàng đợi sự kiện: một người ghi (ISR) và một người đọc (vòng lặp chính), mỗi
  * bên chỉ sửa chỉ số của riêng mình và cả hai chỉ số đều là 1 byte — trên
  * Cortex-M3 đọc/ghi 1 byte là thao tác đơn, không cần khoá ngắt.
  * 8 chỗ là quá thừa: người dùng bấm nhanh nhất cũng chỉ vài lần mỗi giây, còn
  * vòng lặp chính rút hàng đợi ít nhất 2 lần mỗi giây. */
-#define UI_EVENT_QUEUE_SIZE   8u
+#define UI_EVENT_QUEUE_SIZE 8u
 
 /* Nhật ký hiện trên trang LOG */
-#define UI_LOG_LINES         12u
-#define UI_LOG_VISIBLE       UI_LIST_ROWS
-#define UI_LOG_TEXT_LEN      16u
+#define UI_LOG_LINES    12u
+#define UI_LOG_VISIBLE  UI_LIST_ROWS
+#define UI_LOG_TEXT_LEN 16u
 
 typedef struct {
-    uint32_t tick_ms;                 /* Mốc HAL_GetTick() lúc ghi */
-    char     text[UI_LOG_TEXT_LEN];
+    uint32_t tick_ms; /* Mốc HAL_GetTick() lúc ghi */
+    char text[UI_LOG_TEXT_LEN];
 } UI_LogEntry_t;
 
 /* Bảng nhãn của 5 kênh ngõ ra. Tên và tên chân lấy từ pin_config.h để nhãn
@@ -100,44 +109,39 @@ static const struct {
     const char *name;
     const char *pin_name;
 } ui_outputs[OUT_COUNT] = {
-    { OUT1_NAME, OUT1_PIN_NAME },
-    { OUT2_NAME, OUT2_PIN_NAME },
-    { OUT3_NAME, OUT3_PIN_NAME },
-    { OUT4_NAME, OUT4_PIN_NAME },
-    { OUT5_NAME, OUT5_PIN_NAME },
+    {OUT1_NAME, OUT1_PIN_NAME}, {OUT2_NAME, OUT2_PIN_NAME}, {OUT3_NAME, OUT3_PIN_NAME},
+    {OUT4_NAME, OUT4_PIN_NAME}, {OUT5_NAME, OUT5_PIN_NAME},
 };
 
-static ssd1306_t          ui_display;
+static ssd1306_t ui_display;
 static I2C_HandleTypeDef *ui_hi2c;
 
 /* ISR ghi các biến này, vòng lặp chính đọc chúng. Đều là 1 byte nên trên
  * Cortex-M3 mỗi lần đọc/ghi là một lệnh đơn, không thể bị cắt đôi. */
 static volatile uint8_t ui_event_queue[UI_EVENT_QUEUE_SIZE];
-static volatile uint8_t ui_event_head;   /* ISR ghi vào đây */
-static volatile uint8_t ui_event_tail;   /* Vòng lặp chính đọc từ đây */
+static volatile uint8_t ui_event_head; /* ISR ghi vào đây */
+static volatile uint8_t ui_event_tail; /* Vòng lặp chính đọc từ đây */
 
-static uint8_t  ui_current_page;
-static uint8_t  ui_selected_output;  /* Kênh đang được con trỏ trỏ tới */
+static uint8_t ui_current_page;
+static uint8_t ui_selected_output; /* Kênh đang được con trỏ trỏ tới */
 
 /* Tình trạng Bluetooth của khung hình đang vẽ. Giữ ở đây thay vì truyền xuống
  * từng hàm vẽ: nó chỉ phục vụ thanh tiêu đề, mà thanh tiêu đề thì trang nào
  * cũng có — kể cả hai trang tĩnh không hề nhận UI_Data_t. */
-static bool     ui_bluetooth_connected;
-static uint8_t  ui_redraw_pending;
+static bool ui_bluetooth_connected;
+static uint8_t ui_redraw_pending;
 static uint32_t ui_last_draw_ms;
 
 /* Bảng nút: chân, cổng và sự kiện tương ứng. Cần cả cổng vì việc chống dội
  * phím phải ĐỌC LẠI mức của chân chứ không thể chỉ tin vào cạnh ngắt. */
 static const struct {
     GPIO_TypeDef *port;
-    uint16_t      pin;
-    UI_Event_t    event;
+    uint16_t pin;
+    UI_Event_t event;
 } ui_buttons[UI_BUTTON_COUNT] = {
-    { BTN_NEXT_PORT, BTN_NEXT_PIN, UI_EVENT_NEXT },
-    { BTN_PREV_PORT, BTN_PREV_PIN, UI_EVENT_PREV },
-    { BTN_UP_PORT,   BTN_UP_PIN,   UI_EVENT_UP },
-    { BTN_DOWN_PORT, BTN_DOWN_PIN, UI_EVENT_DOWN },
-    { BTN_OK_PORT,   BTN_OK_PIN,   UI_EVENT_OK },
+    {BTN_NEXT_PORT, BTN_NEXT_PIN, UI_EVENT_NEXT}, {BTN_PREV_PORT, BTN_PREV_PIN, UI_EVENT_PREV},
+    {BTN_UP_PORT, BTN_UP_PIN, UI_EVENT_UP},       {BTN_DOWN_PORT, BTN_DOWN_PIN, UI_EVENT_DOWN},
+    {BTN_OK_PORT, BTN_OK_PIN, UI_EVENT_OK},
 };
 
 /* Mức đã chốt của từng nút: true = đang bị nhấn giữ. Sự kiện chỉ sinh ra ở lần
@@ -149,9 +153,18 @@ static volatile uint8_t ui_button_pressed[UI_BUTTON_COUNT];
 static volatile uint32_t ui_last_button_ms[UI_BUTTON_COUNT];
 
 static UI_LogEntry_t ui_log[UI_LOG_LINES];
-static uint8_t       ui_log_count;   /* Số dòng đang có, tối đa UI_LOG_LINES */
-static uint8_t       ui_log_head;    /* Vị trí sẽ ghi đè tiếp theo */
-static uint8_t       ui_log_scroll;  /* Số dòng đã cuộn lên khỏi đáy */
+static uint8_t ui_log_count;  /* Số dòng đang có, tối đa UI_LOG_LINES */
+static uint8_t ui_log_head;   /* Vị trí sẽ ghi đè tiếp theo */
+static uint8_t ui_log_scroll; /* Số dòng đã cuộn lên khỏi đáy */
+
+/* Biến enthauciation */
+static uint8_t ui_pin_entered[PIN_LEN] = {0u, 0u, 0u, 0u};
+static uint8_t ui_pin_index;
+static uint8_t ui_pin_attempts;
+static uint8_t ui_pin_max_attempts = 3u;
+static uint8_t ui_pin_locked = false;
+static uint8_t ui_input_pwd[PIN_LEN] = {1, 2, 3,
+                                        4}; // Chờ người dùng nhập, để 10u để biết là chưa nhập gì
 
 /*==================== Nguyên mẫu hàm nội bộ ====================*/
 
@@ -159,18 +172,18 @@ static void UI_QueueEvent(UI_Event_t event);
 static void UI_SampleButton(uint8_t index, uint32_t now_ms);
 static void UI_ReleaseStaleButtons(uint32_t now_ms);
 static void UI_HandleEvent(UI_Event_t event, UI_Request_t *req);
-static void UI_DrawHeader(const char *title);
-static void UI_DrawTextRight(uint16_t right_x, uint16_t y, const char *text,
-                             SSD1306_COLOR color);
-static void UI_DrawProgressBar(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
-                               uint8_t percent);
+static void UI_DrawHeader(const char *title, uint8_t en_page_display);
+static void UI_DrawTextRight(uint16_t right_x, uint16_t y, const char *text, SSD1306_COLOR color);
+static void UI_DrawProgressBar(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t percent);
 static void UI_DrawCell(uint16_t x, uint16_t y, bool filled, bool focused);
 static void UI_FormatUptime(char *out, size_t out_size, uint32_t now_ms);
+static void UI_DrawLockPage(const UI_Data_t *data, uint32_t now_ms);
 static void UI_DrawHomePage(const UI_Data_t *data, uint32_t now_ms);
 static void UI_DrawOutputsPage(const UI_Data_t *data);
 static void UI_DrawSensorPage(const UI_Data_t *data);
 static void UI_DrawLogPage(void);
 static void UI_DrawHelpPage(void);
+static void UI_DrawKeypadModal();
 static void UI_Render(const UI_Data_t *data, uint32_t now_ms);
 
 /*==================== API công khai ====================*/
@@ -186,18 +199,17 @@ void UI_Init(I2C_HandleTypeDef *hi2c)
     ui_display.width = SSD1306_WIDTH;
     ui_display.height = SSD1306_HEIGHT;
 
-    ui_current_page = (uint8_t)UI_PAGE_HOME;
+    ui_current_page = (uint8_t)UI_PAGE_LOCK;
     ui_selected_output = 0u;
     ui_redraw_pending = 1u;
 
     SSD1306_Clear(&ui_display);
-    UI_DrawHeader("BOOTING");
-    SSD1306_WriteString(&ui_display, UI_TEXT_PAD_X, 18u,
-                        "STM32 BT NODE", SSD1306_COLOR_WHITE);
-    SSD1306_WriteString(&ui_display, UI_TEXT_PAD_X, 32u,
-                        "5 OUTPUTS  5 BUTTONS", SSD1306_COLOR_WHITE);
-    SSD1306_WriteString(&ui_display, UI_TEXT_PAD_X, 46u,
-                        "PA6/PB1 = DOI TRANG", SSD1306_COLOR_WHITE);
+    UI_DrawHeader("BOOTING", 0);
+    SSD1306_WriteString(&ui_display, UI_TEXT_PAD_X, 18u, "STM32 BT NODE", SSD1306_COLOR_WHITE);
+    SSD1306_WriteString(&ui_display, UI_TEXT_PAD_X, 32u, "5 OUTPUTS  5 BUTTONS",
+                        SSD1306_COLOR_WHITE);
+    SSD1306_WriteString(&ui_display, UI_TEXT_PAD_X, 46u, "PA6/PB1 = DOI TRANG",
+                        SSD1306_COLOR_WHITE);
     SSD1306_UpdateScreen(hi2c, &ui_display);
 }
 
@@ -309,11 +321,11 @@ static void UI_SampleButton(uint8_t index, uint32_t now_ms)
     }
 
     /* Nút nối xuống GND với pull-up nội: mức THẤP nghĩa là đang bị nhấn. */
-    pressed = (uint8_t)(HAL_GPIO_ReadPin(ui_buttons[index].port,
-                                         ui_buttons[index].pin) == GPIO_PIN_RESET);
+    pressed = (uint8_t)(HAL_GPIO_ReadPin(ui_buttons[index].port, ui_buttons[index].pin) ==
+                        GPIO_PIN_RESET);
 
     if (pressed == ui_button_pressed[index]) {
-        return;     /* Cạnh giả hoặc mức đã trở về chỗ cũ — không có gì đổi */
+        return; /* Cạnh giả hoặc mức đã trở về chỗ cũ — không có gì đổi */
     }
 
     ui_last_button_ms[index] = now_ms;
@@ -348,7 +360,7 @@ static void UI_ReleaseStaleButtons(uint32_t now_ms)
             continue;
         }
         if (HAL_GPIO_ReadPin(ui_buttons[i].port, ui_buttons[i].pin) == GPIO_PIN_RESET) {
-            continue;   /* Vẫn đang giữ thật */
+            continue; /* Vẫn đang giữ thật */
         }
 
         ui_button_pressed[i] = 0u;
@@ -367,6 +379,78 @@ static void UI_ReleaseStaleButtons(uint32_t now_ms)
 static void UI_HandleEvent(UI_Event_t event, UI_Request_t *req)
 {
     ui_redraw_pending = 1u;
+    if (ui_current_page == (uint8_t)UI_PAGE_LOCK) {
+        ui_current_page = (uint8_t)UI_PAGE_LOGGIN;
+        return;
+    }
+
+    if (ui_current_page == (uint8_t)UI_PAGE_LOGGIN) {
+        switch (event) {
+        case UI_EVENT_NEXT:
+            ui_keypad_id = (uint8_t)((ui_keypad_id + 1u) % 12u);
+            break;
+        case UI_EVENT_PREV:
+            if (ui_keypad_id == 0u) {
+                ui_keypad_id = 11u;
+            } else {
+                ui_keypad_id--;
+            }
+            break;
+        case UI_EVENT_UP:
+            if (ui_keypad_id < 3u) {
+                ui_keypad_id = (uint8_t)(ui_keypad_id + 9u);
+            } else {
+                ui_keypad_id = (uint8_t)((ui_keypad_id - 3u) % 12u);
+            }
+            break;
+        case UI_EVENT_DOWN:
+            ui_keypad_id = (uint8_t)((ui_keypad_id + 3u) % 12u);
+            break;
+        case UI_EVENT_OK:
+            if (ui_keypad_id == 9u) {
+                // remove last digit
+                if (ui_pin_index > 0u) {
+                    ui_pin_index--;
+                    ui_pin_entered[ui_pin_index] = 0u;
+                }
+            } else if (ui_keypad_id == 11u) {
+                // check pin
+                if (ui_pin_index == PIN_LEN) {
+                    bool pin_correct = true;
+                    for (uint8_t i = 0u; i < PIN_LEN; i++) {
+                        if (ui_pin_entered[i] != ui_input_pwd[i]) {
+                            pin_correct = false;
+                            break;
+                        }
+                    }
+                    if (pin_correct) {
+                        ui_current_page = (uint8_t)UI_PAGE_HOME;
+                        ui_pin_index = 0u;
+                        memset(ui_pin_entered, 0u, sizeof(ui_pin_entered));
+                        ui_pin_attempts = 0u;
+                    } else {
+                        ui_pin_attempts++;
+                        if (ui_pin_attempts >= ui_pin_max_attempts) {
+                            ui_pin_locked = true;
+                            // handle lockout logic here
+                            // use SSD1306_WriteString to display a lockout message
+                        }
+                        ui_pin_index = 0u;
+                    }
+                }
+            } else {
+                // add digit
+                if (ui_pin_index < PIN_LEN) {
+                    ui_pin_entered[ui_pin_index] = (uint8_t)(ui_keypad_id + 1u);
+                    ui_pin_index++;
+                }
+            }
+            break;
+        default:
+            break;
+        }
+        return;
+    }
 
     switch (event) {
     case UI_EVENT_NEXT:
@@ -374,8 +458,8 @@ static void UI_HandleEvent(UI_Event_t event, UI_Request_t *req)
         break;
 
     case UI_EVENT_PREV:
-        ui_current_page = (uint8_t)((ui_current_page + (uint8_t)UI_PAGE_COUNT - 1u) %
-                                    (uint8_t)UI_PAGE_COUNT);
+        ui_current_page =
+            (uint8_t)((ui_current_page + (uint8_t)UI_PAGE_COUNT - 1u) % (uint8_t)UI_PAGE_COUNT);
         break;
 
     case UI_EVENT_UP:
@@ -426,6 +510,12 @@ static void UI_Render(const UI_Data_t *data, uint32_t now_ms)
     ui_bluetooth_connected = data->bluetooth_connected;
 
     switch ((UI_Page_t)ui_current_page) {
+    case UI_PAGE_LOCK:
+        UI_DrawLockPage(data, now_ms);
+        break;
+    case UI_PAGE_LOGGIN:
+        UI_DrawKeypadModal();
+        break;
     case UI_PAGE_HOME:
         UI_DrawHomePage(data, now_ms);
         break;
@@ -458,23 +548,23 @@ static void UI_Render(const UI_Data_t *data, uint32_t now_ms)
  * Tô đặc cả dải bằng màu trắng rồi viết chữ màu ĐEN đè lên: SSD1306_WriteChar()
  * chỉ chạm vào đúng các pixel của glyph, nên chữ sẽ "khoét" ra khỏi nền trắng.
  */
-static void UI_DrawHeader(const char *title)
+static void UI_DrawHeader(const char *title, uint8_t en_page_display)
 {
     char right_text[12];
 
-    SSD1306_FillRect(&ui_display, 0u, 0u, SSD1306_WIDTH, UI_HEADER_HEIGHT,
-                     SSD1306_COLOR_WHITE);
-    SSD1306_WriteString(&ui_display, UI_TEXT_PAD_X, UI_HEADER_TEXT_Y, title,
-                        SSD1306_COLOR_BLACK);
+    SSD1306_FillRect(&ui_display, 0u, 0u, SSD1306_WIDTH, UI_HEADER_HEIGHT, SSD1306_COLOR_WHITE);
+    SSD1306_WriteString(&ui_display, UI_TEXT_PAD_X, UI_HEADER_TEXT_Y, title, SSD1306_COLOR_BLACK);
 
     /* "BT" chỉ hiện khi đã có liên lạc — sự vắng mặt của nó chính là dấu hiệu
      * mất kết nối, không cần thêm chữ "NO LINK" chiếm chỗ. */
-    snprintf(right_text, sizeof(right_text), "%s%u/%u",
-             ui_bluetooth_connected ? "BT " : "",
-             (unsigned)(ui_current_page + 1u), (unsigned)UI_PAGE_COUNT);
+    if (en_page_display) {
+        snprintf(right_text, sizeof(right_text), "%s%u/%u", ui_bluetooth_connected ? "BT " : "",
+                 (unsigned)(ui_current_page + 1u), (unsigned)UI_PAGE_COUNT);
+    } else {
+        snprintf(right_text, sizeof(right_text), "%s", ui_bluetooth_connected ? "BT" : "");
+    }
 
-    UI_DrawTextRight(UI_RIGHT_EDGE_X, UI_HEADER_TEXT_Y, right_text,
-                     SSD1306_COLOR_BLACK);
+    UI_DrawTextRight(UI_RIGHT_EDGE_X, UI_HEADER_TEXT_Y, right_text, SSD1306_COLOR_BLACK);
 }
 
 /**
@@ -483,13 +573,12 @@ static void UI_DrawHeader(const char *title)
  * Mỗi ký tự chiếm SSD1306_CHAR_ADVANCE px, ký tự cuối không cần cột ngăn cách
  * nên trừ bớt 1.
  */
-static void UI_DrawTextRight(uint16_t right_x, uint16_t y, const char *text,
-                             SSD1306_COLOR color)
+static void UI_DrawTextRight(uint16_t right_x, uint16_t y, const char *text, SSD1306_COLOR color)
 {
     uint16_t width = (uint16_t)(strlen(text) * SSD1306_CHAR_ADVANCE - 1u);
 
     if (width > right_x) {
-        return;     /* Không đủ chỗ: thà bỏ qua còn hơn vẽ tràn sang trái */
+        return; /* Không đủ chỗ: thà bỏ qua còn hơn vẽ tràn sang trái */
     }
 
     SSD1306_WriteString(&ui_display, (uint16_t)(right_x - width), y, text, color);
@@ -498,8 +587,7 @@ static void UI_DrawTextRight(uint16_t right_x, uint16_t y, const char *text,
 /**
  * @brief Thanh mức: khung viền 1 px, bên trong tô đặc theo tỉ lệ percent (0..100).
  */
-static void UI_DrawProgressBar(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
-                               uint8_t percent)
+static void UI_DrawProgressBar(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t percent)
 {
     uint16_t inner_w;
     uint16_t fill_w;
@@ -507,7 +595,7 @@ static void UI_DrawProgressBar(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
     SSD1306_DrawRect(&ui_display, x, y, w, h, SSD1306_COLOR_WHITE);
 
     if (percent > 100u) {
-        percent = 100u;     /* Cảm biến hỏng cũng không được vẽ tràn khung */
+        percent = 100u; /* Cảm biến hỏng cũng không được vẽ tràn khung */
     }
 
     /* Chừa 1 px viền mỗi bên, thêm 1 px khe cho phần tô không dính vào viền. */
@@ -515,8 +603,8 @@ static void UI_DrawProgressBar(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
     fill_w = (uint16_t)((inner_w * percent) / 100u);
 
     if (fill_w > 0u) {
-        SSD1306_FillRect(&ui_display, (uint16_t)(x + 2u), (uint16_t)(y + 2u),
-                         fill_w, (uint16_t)(h - 4u), SSD1306_COLOR_WHITE);
+        SSD1306_FillRect(&ui_display, (uint16_t)(x + 2u), (uint16_t)(y + 2u), fill_w,
+                         (uint16_t)(h - 4u), SSD1306_COLOR_WHITE);
     }
 }
 
@@ -525,23 +613,19 @@ static void UI_DrawProgressBar(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
  */
 static void UI_DrawCell(uint16_t x, uint16_t y, bool filled, bool focused)
 {
-    SSD1306_DrawRect(&ui_display, x, y, UI_CELL_SIZE, UI_CELL_SIZE,
-                     SSD1306_COLOR_WHITE);
+    SSD1306_DrawRect(&ui_display, x, y, UI_CELL_SIZE, UI_CELL_SIZE, SSD1306_COLOR_WHITE);
 
     if (filled) {
-        SSD1306_FillRect(&ui_display, (uint16_t)(x + UI_CELL_INSET),
-                         (uint16_t)(y + UI_CELL_INSET),
+        SSD1306_FillRect(&ui_display, (uint16_t)(x + UI_CELL_INSET), (uint16_t)(y + UI_CELL_INSET),
                          (uint16_t)(UI_CELL_SIZE - 2u * UI_CELL_INSET),
-                         (uint16_t)(UI_CELL_SIZE - 2u * UI_CELL_INSET),
-                         SSD1306_COLOR_WHITE);
+                         (uint16_t)(UI_CELL_SIZE - 2u * UI_CELL_INSET), SSD1306_COLOR_WHITE);
     }
 
     if (focused) {
         SSD1306_DrawRect(&ui_display, (uint16_t)(x - UI_CELL_FOCUS_PAD),
                          (uint16_t)(y - UI_CELL_FOCUS_PAD),
                          (uint16_t)(UI_CELL_SIZE + 2u * UI_CELL_FOCUS_PAD),
-                         (uint16_t)(UI_CELL_SIZE + 2u * UI_CELL_FOCUS_PAD),
-                         SSD1306_COLOR_WHITE);
+                         (uint16_t)(UI_CELL_SIZE + 2u * UI_CELL_FOCUS_PAD), SSD1306_COLOR_WHITE);
     }
 }
 
@@ -552,26 +636,62 @@ static void UI_FormatUptime(char *out, size_t out_size, uint32_t now_ms)
 {
     uint32_t seconds = now_ms / 1000u;
 
-    snprintf(out, out_size, "%02u:%02u:%02u",
-             (unsigned)((seconds / 3600u) % 100u),
-             (unsigned)((seconds / 60u) % 60u),
-             (unsigned)(seconds % 60u));
+    snprintf(out, out_size, "%02u:%02u:%02u", (unsigned)((seconds / 3600u) % 100u),
+             (unsigned)((seconds / 60u) % 60u), (unsigned)(seconds % 60u));
+}
+
+/*==================== Trang 0: LOCK ====================*/
+static void UI_DrawLockPage(const UI_Data_t *data, uint32_t now_ms)
+{
+    char line[UI_TEXT_LEN];
+    uint8_t i;
+
+    UI_DrawHeader("LOCKED Screen", 0);
+
+    snprintf(line, sizeof(line), "TEMP %u%cC", (unsigned)data->temperature_c, SSD1306_DEGREE_CHAR);
+    SSD1306_WriteString(&ui_display, UI_TEXT_PAD_X, 12u, line, SSD1306_COLOR_WHITE);
+
+    snprintf(line, sizeof(line), "HUMI %u%%", (unsigned)data->humidity_pct);
+    SSD1306_WriteString(&ui_display, 70u, 12u, line, SSD1306_COLOR_WHITE);
+
+    UI_FormatUptime(line, sizeof(line), now_ms);
+    SSD1306_WriteString(&ui_display, UI_TEXT_PAD_X, 20, line, SSD1306_COLOR_WHITE);
+
+    snprintf(line, sizeof(line), "%s", data->sensor_valid ? "DHT OK" : "DHT --");
+    SSD1306_WriteString(&ui_display, 70u, 20, line, SSD1306_COLOR_WHITE);
+
+    snprintf(line, sizeof(line), "%s", data->bluetooth_connected ? "BT OK" : "BT --");
+    SSD1306_WriteString(&ui_display, UI_TEXT_PAD_X, 28, line, SSD1306_COLOR_WHITE);
+
+    uint8_t offset = 2;
+    for (i = 0u; i < (uint8_t)OUT_COUNT; i++) {
+        uint16_t cell_x = (uint16_t)(UI_CELL_FIRST_X + i * UI_CELL_PITCH_X);
+        char number[2];
+
+        /* Số kênh đặt ngay trên ô, lùi 2 px để glyph 5 px nằm giữa ô 10 px. */
+        number[0] = (char)('1' + i);
+        number[1] = '\0';
+        SSD1306_WriteString(&ui_display, (uint16_t)(cell_x + 2u), 34u + offset, number,
+                            SSD1306_COLOR_WHITE);
+
+        UI_DrawCell(cell_x, UI_CELL_Y + offset, data->output_on[i], 0);
+    }
+    SSD1306_WriteString(&ui_display, 13, 57, "Any key to unlock", SSD1306_COLOR_WHITE);
 }
 
 /*==================== Trang 1: HOME ====================*/
 
 static void UI_DrawHomePage(const UI_Data_t *data, uint32_t now_ms)
 {
-    char     line[UI_TEXT_LEN];
-    uint8_t  i;
+    char line[UI_TEXT_LEN];
+    uint8_t i;
     uint16_t temp_pct;
 
-    UI_DrawHeader("HOME");
+    UI_DrawHeader("HOME", 1);
 
     /* Hai cột số đo. %c với SSD1306_DEGREE_CHAR: ký hiệu độ nằm ở ô 0x7F của
      * bảng font, ngoài dải ASCII nên không viết thẳng trong chuỗi được. */
-    snprintf(line, sizeof(line), "TEMP %u%cC",
-             (unsigned)data->temperature_c, SSD1306_DEGREE_CHAR);
+    snprintf(line, sizeof(line), "TEMP %u%cC", (unsigned)data->temperature_c, SSD1306_DEGREE_CHAR);
     SSD1306_WriteString(&ui_display, UI_TEXT_PAD_X, 12u, line, SSD1306_COLOR_WHITE);
 
     snprintf(line, sizeof(line), "HUMI %u%%", (unsigned)data->humidity_pct);
@@ -591,16 +711,14 @@ static void UI_DrawHomePage(const UI_Data_t *data, uint32_t now_ms)
 
     for (i = 0u; i < (uint8_t)OUT_COUNT; i++) {
         uint16_t cell_x = (uint16_t)(UI_CELL_FIRST_X + i * UI_CELL_PITCH_X);
-        char     number[2];
+        char number[2];
 
         /* Số kênh đặt ngay trên ô, lùi 2 px để glyph 5 px nằm giữa ô 10 px. */
         number[0] = (char)('1' + i);
         number[1] = '\0';
-        SSD1306_WriteString(&ui_display, (uint16_t)(cell_x + 2u), 34u, number,
-                            SSD1306_COLOR_WHITE);
+        SSD1306_WriteString(&ui_display, (uint16_t)(cell_x + 2u), 34u, number, SSD1306_COLOR_WHITE);
 
-        UI_DrawCell(cell_x, UI_CELL_Y, data->output_on[i],
-                    (i == ui_selected_output));
+        UI_DrawCell(cell_x, UI_CELL_Y, data->output_on[i], (i == ui_selected_output));
     }
 
     UI_FormatUptime(line, sizeof(line), now_ms);
@@ -615,26 +733,25 @@ static void UI_DrawOutputsPage(const UI_Data_t *data)
 {
     uint8_t i;
 
-    UI_DrawHeader("OUTPUTS");
+    UI_DrawHeader("OUTPUTS", 1);
 
     for (i = 0u; i < (uint8_t)OUT_COUNT; i++) {
-        uint16_t      row_y = (uint16_t)(UI_LIST_ROW0_Y + i * UI_LIST_ROW_SPACING);
-        bool          selected = (i == ui_selected_output);
+        uint16_t row_y = (uint16_t)(UI_LIST_ROW0_Y + i * UI_LIST_ROW_SPACING);
+        bool selected = (i == ui_selected_output);
         SSD1306_COLOR text_color = selected ? SSD1306_COLOR_BLACK : SSD1306_COLOR_WHITE;
-        char          line[UI_TEXT_LEN];
+        char line[UI_TEXT_LEN];
 
         /* Dòng đang chọn: tô trắng cả dải rồi ghi chữ đen đè lên — cùng kỹ
          * thuật với thanh tiêu đề, nhìn rõ hơn nhiều so với một dấu ">". */
         if (selected) {
-            SSD1306_FillRect(&ui_display, 0u, (uint16_t)(row_y - 1u),
-                             SSD1306_WIDTH, 9u, SSD1306_COLOR_WHITE);
+            SSD1306_FillRect(&ui_display, 0u, (uint16_t)(row_y - 1u), SSD1306_WIDTH, 9u,
+                             SSD1306_COLOR_WHITE);
         }
 
         /* %-5s và %-4s giữ các cột thẳng hàng dù tên kênh dài ngắn khác nhau;
          * %3s để chữ ON/OFF cùng kết thúc ở một cột. */
-        snprintf(line, sizeof(line), "%u %-5s %-4s  %3s",
-                 (unsigned)(i + 1u), ui_outputs[i].name, ui_outputs[i].pin_name,
-                 data->output_on[i] ? "ON" : "OFF");
+        snprintf(line, sizeof(line), "%u %-5s %-4s  %3s", (unsigned)(i + 1u), ui_outputs[i].name,
+                 ui_outputs[i].pin_name, data->output_on[i] ? "ON" : "OFF");
         SSD1306_WriteString(&ui_display, UI_TEXT_PAD_X, row_y, line, text_color);
     }
 }
@@ -643,10 +760,10 @@ static void UI_DrawOutputsPage(const UI_Data_t *data)
 
 static void UI_DrawSensorPage(const UI_Data_t *data)
 {
-    char     line[UI_TEXT_LEN];
+    char line[UI_TEXT_LEN];
     uint16_t temp_pct;
 
-    UI_DrawHeader("DHT11 SENSOR");
+    UI_DrawHeader("DHT11 SENSOR", 1);
 
     /* Trang này cố tình KHÔNG dùng Format_Status(): màn hình là một
      * phương tiện khác — mỗi trường một dòng, có thanh mức, có ký hiệu độ — ép
@@ -656,8 +773,7 @@ static void UI_DrawSensorPage(const UI_Data_t *data)
      * Không in phần thập phân: DHT11 có độ phân giải 1 độ C / 1 %, byte thập
      * phân của nó luôn bằng 0 nên ".0" chỉ là số trang trí giả. */
     SSD1306_WriteString(&ui_display, UI_TEXT_PAD_X, 13u, "TEMP", SSD1306_COLOR_WHITE);
-    snprintf(line, sizeof(line), "%u%cC",
-             (unsigned)data->temperature_c, SSD1306_DEGREE_CHAR);
+    snprintf(line, sizeof(line), "%u%cC", (unsigned)data->temperature_c, SSD1306_DEGREE_CHAR);
     UI_DrawTextRight(UI_RIGHT_EDGE_X, 13u, line, SSD1306_COLOR_WHITE);
 
     temp_pct = (uint16_t)((data->temperature_c * 100u) / UI_TEMP_SCALE_MAX_C);
@@ -677,8 +793,7 @@ static void UI_DrawSensorPage(const UI_Data_t *data)
     }
     SSD1306_WriteString(&ui_display, UI_TEXT_PAD_X, 55u, line, SSD1306_COLOR_WHITE);
 
-    UI_DrawTextRight(UI_RIGHT_EDGE_X, 55u,
-                     data->bluetooth_connected ? "BT PAIR" : "BT ----",
+    UI_DrawTextRight(UI_RIGHT_EDGE_X, 55u, data->bluetooth_connected ? "BT PAIR" : "BT ----",
                      SSD1306_COLOR_WHITE);
 }
 
@@ -686,16 +801,16 @@ static void UI_DrawSensorPage(const UI_Data_t *data)
 
 static void UI_DrawLogPage(void)
 {
-    char    header_range[12];   /* "12-12/12" là chuỗi dài nhất có thể */
+    char header_range[12]; /* "12-12/12" là chuỗi dài nhất có thể */
     uint8_t visible;
-    uint8_t first;      /* Chỉ số (tính từ dòng cũ nhất) của dòng trên cùng */
+    uint8_t first; /* Chỉ số (tính từ dòng cũ nhất) của dòng trên cùng */
     uint8_t i;
 
-    UI_DrawHeader("LOG");
+    UI_DrawHeader("LOG", 1);
 
     if (ui_log_count == 0u) {
-        SSD1306_WriteString(&ui_display, UI_TEXT_PAD_X, UI_LIST_ROW0_Y,
-                            "(EMPTY)", SSD1306_COLOR_WHITE);
+        SSD1306_WriteString(&ui_display, UI_TEXT_PAD_X, UI_LIST_ROW0_Y, "(EMPTY)",
+                            SSD1306_COLOR_WHITE);
         return;
     }
 
@@ -708,29 +823,25 @@ static void UI_DrawLogPage(void)
 
     /* Cho biết đang xem đoạn nào của nhật ký — không có nó thì lúc cuộn giữa
      * chừng, màn hình trông y hệt lúc đang bám đáy. */
-    snprintf(header_range, sizeof(header_range), "%u-%u/%u",
-             (unsigned)(first + 1u), (unsigned)(first + visible),
-             (unsigned)ui_log_count);
-    SSD1306_WriteString(&ui_display, 34u, UI_HEADER_TEXT_Y, header_range,
-                        SSD1306_COLOR_BLACK);
+    snprintf(header_range, sizeof(header_range), "%u-%u/%u", (unsigned)(first + 1u),
+             (unsigned)(first + visible), (unsigned)ui_log_count);
+    SSD1306_WriteString(&ui_display, 34u, UI_HEADER_TEXT_Y, header_range, SSD1306_COLOR_BLACK);
 
     for (i = 0u; i < visible; i++) {
         /* Đọc vòng tròn từ dòng cũ nhất tới dòng mới nhất. Khi bộ đệm chưa
          * đầy, dòng cũ nhất nằm ở chỉ số 0; khi đã đầy, nó nằm ngay sau head. */
         uint8_t index = (uint8_t)(first + i);
-        uint8_t slot = (ui_log_count < UI_LOG_LINES)
-                           ? index
-                           : (uint8_t)((ui_log_head + index) % UI_LOG_LINES);
+        uint8_t slot =
+            (ui_log_count < UI_LOG_LINES) ? index : (uint8_t)((ui_log_head + index) % UI_LOG_LINES);
         const UI_LogEntry_t *entry = &ui_log[slot];
         uint32_t seconds = entry->tick_ms / 1000u;
-        char     line[UI_TEXT_LEN];
+        char line[UI_TEXT_LEN];
 
-        snprintf(line, sizeof(line), "%02u:%02u %s",
-                 (unsigned)((seconds / 60u) % 100u), (unsigned)(seconds % 60u),
-                 entry->text);
+        snprintf(line, sizeof(line), "%02u:%02u %s", (unsigned)((seconds / 60u) % 100u),
+                 (unsigned)(seconds % 60u), entry->text);
         SSD1306_WriteString(&ui_display, UI_TEXT_PAD_X,
-                            (uint16_t)(UI_LIST_ROW0_Y + i * UI_LIST_ROW_SPACING),
-                            line, SSD1306_COLOR_WHITE);
+                            (uint16_t)(UI_LIST_ROW0_Y + i * UI_LIST_ROW_SPACING), line,
+                            SSD1306_COLOR_WHITE);
     }
 }
 
@@ -749,20 +860,68 @@ static void UI_DrawHelpPage(void)
     /* Mỗi dòng tối đa 21 ký tự thì vừa bề ngang màn hình (21 x 6 = 126 px).
      * Dài hơn thì SSD1306_WriteString() tự xuống dòng và đè lên dòng kế tiếp. */
     static const char *const help_lines[UI_LIST_ROWS] = {
-        "BTN: NEXT PREV UP DN",
-        "     OK = BAT/TAT",
-        "CMD: ON n / OFF n",
-        "     ON ALL/OFF ALL",
-        "     STATUS TEMP HUM",
+        "BTN: NEXT PREV UP DN", "     OK = BAT/TAT",    "CMD: ON n / OFF n",
+        "     ON ALL/OFF ALL",  "     STATUS TEMP HUM",
     };
 
     uint8_t i;
 
-    UI_DrawHeader("HUONG DAN");
+    UI_DrawHeader("HUONG DAN", 1);
 
     for (i = 0u; i < (uint8_t)UI_LIST_ROWS; i++) {
         SSD1306_WriteString(&ui_display, UI_TEXT_PAD_X,
-                            (uint16_t)(UI_LIST_ROW0_Y + i * UI_LIST_ROW_SPACING),
-                            help_lines[i], SSD1306_COLOR_WHITE);
+                            (uint16_t)(UI_LIST_ROW0_Y + i * UI_LIST_ROW_SPACING), help_lines[i],
+                            SSD1306_COLOR_WHITE);
+    }
+}
+
+static void UI_DrawKeypadModal()
+{
+    static const char *labels[12] = {"[1]", "[2]", "[3]", "[4]", "[5]", "[6]",
+                                     "[7]", "[8]", "[9]", "[<]", "[0]", "[E]"};
+    char mask_str[PIN_LEN + 1U];
+    uint8_t i;
+
+    mask_str[PIN_LEN] = '\0';
+    for (i = 0u; i < PIN_LEN; i++) {
+        mask_str[i] = (ui_pin_entered[i] != 0u) ? '*' : '_';
+    }
+
+    UI_DrawTextRight(UI_RIGHT_EDGE_X, UI_HEADER_TEXT_Y, mask_str, SSD1306_COLOR_BLACK);
+    SSD1306_FillRect(&ui_display, 0u, 0u, SSD1306_WIDTH, UI_HEADER_HEIGHT, SSD1306_COLOR_WHITE);
+    SSD1306_WriteString(&ui_display, KEYPAD_HEADER_PADDING, KEYPAD_HEADER_PADDING,
+                        "ENTER PIN:", SSD1306_COLOR_BLACK);
+
+    // Display in the middle of the header area, after the "ENTER PIN:" text
+    SSD1306_WriteString(&ui_display, 84u, KEYPAD_HEADER_PADDING, mask_str, SSD1306_COLOR_BLACK);
+
+    /* Render 3x4 Grid */
+    // for (r = 0; r < 4; r++) {
+    //     for (c = 0; c < 3; c++) {
+    //         uint16_t x = (uint16_t)(16u + (c * 36u));
+    //         uint16_t y = (uint16_t)(14u + (r * 12u));
+    //         uint8_t
+    //         bool is_focused = (r == ui_keypad_row && c == ui_keypad_col);
+
+    //         if (is_focused) {
+    //             SSD1306_FillRect(&ui_display, (uint16_t)(x - 2u), y, 24u, 11u, SSD1306_COLOR_WHITE);
+    //             SSD1306_WriteString(&ui_display, x, (uint16_t)(y + 1u), labels[r * 3 + c],
+    //                                 SSD1306_COLOR_BLACK);
+    //         } else {
+    //             SSD1306_WriteString(&ui_display, x, (uint16_t)(y + 1u), labels[r * 3 + c],
+    //                                 SSD1306_COLOR_WHITE);
+    //         }
+    //     }
+    // }
+    for (i = 0; i < 12; i++) {
+        uint16_t x = (uint16_t)(16u + ((i % 3) * 36u));
+        uint16_t y = (uint16_t)(14u + ((i / 3) * 12u));
+        bool is_focused = (i == ui_keypad_id);
+        if (is_focused) {
+            SSD1306_FillRect(&ui_display, (uint16_t)(x - 2u), y, 24u, 11u, SSD1306_COLOR_WHITE);
+            SSD1306_WriteString(&ui_display, x, (uint16_t)(y + 1u), labels[i], SSD1306_COLOR_BLACK);
+        } else {
+            SSD1306_WriteString(&ui_display, x, (uint16_t)(y + 1u), labels[i], SSD1306_COLOR_WHITE);
+        }
     }
 }

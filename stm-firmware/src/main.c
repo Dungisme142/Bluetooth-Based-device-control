@@ -119,6 +119,7 @@ static void Command_STATUS(char *return_msg, const char *args);
 static void Command_TEMP(char *return_msg, const char *args);
 static void Command_HUM(char *return_msg, const char *args);
 static void Command_AUTO(char *return_msg, const char *args);
+static void Command_AUTH(char *return_msg, const char *args);
 
 /*==================== Bảng lệnh Bluetooth ====================*/
 
@@ -133,8 +134,8 @@ Command_HandleTypeDef Command_Menu[] = {
     {"STATUS", Command_STATUS}, /* Nhiệt độ, độ ẩm, ngõ ra, kết nối */
     {"TEMP", Command_TEMP},     /* Chỉ nhiệt độ */
     {"HUM", Command_HUM},       /* Chỉ độ ẩm */
-    {"AUTO", Command_AUTO}      /* Chế độ tự động — chưa triển khai */
-};
+    {"AUTO", Command_AUTO},     /* Chế độ tự động — chưa triển khai */
+    {"AUTH", Command_AUTH}};
 
 uint8_t Command_Menu_Size = (uint8_t)(sizeof(Command_Menu) / sizeof(Command_Menu[0]));
 
@@ -479,6 +480,12 @@ static void Command_AUTO(char *return_msg, const char *args)
 {
     (void)args;
     (void)snprintf(return_msg, COMMAND_RETURN_MSG_SIZE, "AUTO_MODE_READY\r\n");
+}
+
+static void Command_AUTH(char *return_msg, const char *args)
+{
+    (void)args;
+    (void)snprintf(return_msg, COMMAND_RETURN_MSG_SIZE, "AUTH_OK\r\n");
 }
 
 /*==================== Khởi tạo clock hệ thống ====================*/
