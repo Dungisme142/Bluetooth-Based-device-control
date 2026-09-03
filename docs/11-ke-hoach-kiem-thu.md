@@ -37,107 +37,98 @@ Ký hiệu: `→` = gửi lệnh từ điện thoại, `←` = nhận từ thi�
 
 | ID | FR | Các bước | Kết quả mong đợi | KQ | Ghi chú |
 |---|---|---|---|---|---|
-| **TC-01** | FR-25 | Cấp nguồn cho board. Quan sát 5 LED D1–D5 **ngay từ khoảnh khắc đầu tiên** | Cả 5 LED **tắt hoàn toàn**, không có cú nháy nào lúc khởi động | | |
-| **TC-02** | — | Sau khi cấp nguồn, quan sát OLED | Hiện màn hình `BOOTING` với `STM32 BT NODE` / `5 OUTPUTS 5 BUTTONS`, rồi **chuyển sang trang HOME trong vòng 1 giây** | | |
+| **TC-01** | FR-25 | Cấp nguồn cho board. Quan sát 4 LED ngõ ra D1–D4 và LED PA8 **ngay từ khoảnh khắc đầu tiên** | Cả 4 LED ngõ ra **tắt hoàn toàn**. LED PA8 nhấp nháy chu kỳ 250 ms (do chưa có mẫu DHT hợp lệ) | | |
+| **TC-02** | FR-19 | Sau khi cấp nguồn, quan sát OLED | Hiện màn hình `BOOTING` với `STM32 BT NODE` / `4 OUTPUTS 5 BUTTONS`, rồi **chuyển sang Màn hình khóa (Locked Dashboard) trong vòng 1 giây** | | |
 | **TC-03** | FR-24 | Quan sát LED PC13 trên board Blue Pill trong 10 giây | Nháy đều, chu kỳ **1 giây** (sáng 1 s, tắt 1 s) | | |
 | **TC-04** | FR-15 | Kết nối app terminal **trước** khi cấp nguồn, rồi bật nguồn | Nhận được `MKE-M15 ready` | | |
-| **TC-05** | FR-21 | Chuyển tới trang LOG (bấm NEXT 3 lần từ HOME) | Có dòng `BOOT OK` với mốc thời gian `00:00` | | |
-| **TC-06** | FR-25 | Ngay sau khởi động, gửi `STATUS →` | `← ... OUT=00000` — cả 5 kênh TẮT | | |
+| **TC-05** | FR-21 | Đăng nhập Local bằng PIN 1234, chuyển tới trang LOG (bấm NEXT 3 lần từ HOME) | Có dòng `BOOT OK` với mốc thời gian `00:00` | | |
+| **TC-06** | FR-25 | Ngay sau khởi động (khi chưa có lệnh nào), gửi `STATUS →` | `← TEMP=.. HUM=.. DHT=.. BT=OK AUTH=NONE ALARM=.. OUT=0000` — cả 4 kênh TẮT, chủ quyền là `NONE` | | |
 
 ---
 
-## 11.3 Nhóm B — Giao thức Bluetooth: lệnh hợp lệ
+## 11.3 Nhóm B — Giao thức Bluetooth: lệnh hợp lệ & xác thực
 
 | ID | FR | Các bước | Kết quả mong đợi | KQ | Ghi chú |
 |---|---|---|---|---|---|
-| **TC-07** | FR-02 | `ON 1 →` | `← OUT1_ON`, **LED D1 sáng** | | |
-| **TC-08** | FR-02 | `ON 5 →` | `← OUT5_ON`, **LED D5 sáng**, D1 vẫn sáng, D2–D4 vẫn tắt | | |
-| **TC-09** | FR-01 | Lần lượt `ON 2`, `ON 3`, `ON 4` | Mỗi lệnh trả `OUTn_ON` đúng số kênh, LED tương ứng sáng, **không kênh nào khác đổi trạng thái** | | |
-| **TC-10** | FR-02 | `OFF 3 →` | `← OUT3_OFF`, **chỉ D3 tắt**, bốn LED còn lại giữ nguyên | | |
-| **TC-11** | FR-03 | `OFF ALL →` | `← ALL_OFF`, **cả 5 LED tắt** | | |
-| **TC-12** | FR-03 | `ON ALL →` | `← ALL_ON`, **cả 5 LED sáng** | | |
-| **TC-13** | FR-04 | `OFF ALL →` rồi `ON →` (không tham số) | `← OUT1_ON`, chỉ D1 sáng | | |
-| **TC-14** | FR-11 | `TEMP →` | `← TEMP=<n>C` với `<n>` là số hợp lý của nhiệt độ phòng (20–35) | | |
-| **TC-15** | FR-11 | `HUM →` | `← HUM=<n>%` với `<n>` trong 20–90 | | |
-| **TC-16** | FR-10 | `ON 1`, `ON 3` rồi `STATUS →` | `← TEMP=..C HUM=..% OUT1=ON BT=OK OUT=10100` — bản đồ bit khớp đúng LED đang sáng | | |
-| **TC-17** | — | `AUTO →` | `← AUTO_MODE_READY` (lệnh còn là stub, chỉ cần trả lời đúng) | | |
+| **TC-07** | FR-28 | Khi chưa gửi `LOGIN`: gửi `ON 1 →` | `← ERR_LOCKED`, LED D1 không đổi (bảo vệ khi chưa xác thực) | | |
+| **TC-08** | FR-26 | Gửi `LOGIN 1234 →` | `← LOGIN_OK`, BLE trở thành chủ phiên (`AUTH_BLE`) | | |
+| **TC-09** | FR-02 | Sau TC-08, gửi `ON 1 →` | `← OUT1_ON`, **LED D1 sáng** | | |
+| **TC-10** | FR-02 | Gửi `ON 4 →` | `← OUT4_ON`, **LED D4 sáng**, D1 vẫn sáng, D2–D3 vẫn tắt | | |
+| **TC-11** | FR-01 | Lần lượt gửi `ON 2`, `ON 3` | Mỗi lệnh trả `OUTn_ON` đúng số kênh, LED tương ứng sáng | | |
+| **TC-12** | FR-02 | Gửi `OFF 3 →` | `← OUT3_OFF`, **chỉ D3 tắt**, ba LED còn lại giữ nguyên | | |
+| **TC-13** | FR-03 | Gửi `OFF ALL →` | `← ALL_OFF`, **cả 4 LED tắt** | | |
+| **TC-14** | FR-03 | Gửi `ON ALL →` | `← ALL_ON`, **cả 4 LED sáng** | | |
+| **TC-15** | FR-04 | Gửi `OFF ALL →` rồi `ON →` (không tham số) | `← OUT1_ON`, chỉ D1 sáng (OUT1 trên PB15) | | |
+| **TC-16** | FR-11 | Gửi `TEMP →` | `← TEMP=<n>C` với `<n>` hợp lý (20–35) | | |
+| **TC-17** | FR-11 | Gửi `HUM →` | `← HUM=<n>%` với `<n>` trong 20–90 | | |
+| **TC-18** | FR-10 | Sau khi bật kênh 1 và 4, gửi `STATUS →` | `← TEMP=..C HUM=..% DHT=OK BT=OK AUTH=BLE ALARM=NORMAL OUT=1001` | | |
+| **TC-19** | FR-27 | Gửi `LOGOUT →` | `← LOGOUT_OK`, quyền phiên trở về `AUTH_NONE`. Gửi `ON 1` sau đó nhận `ERR_LOCKED` | | |
 
 ---
 
-## 11.4 Nhóm C — Giao thức Bluetooth: lỗi và biên
+## 11.4 Nhóm C — Giao thức Bluetooth: lỗi, biên & phân quyền
 
 | ID | FR | Các bước | Kết quả mong đợi | KQ | Ghi chú |
 |---|---|---|---|---|---|
-| **TC-18** | FR-07 | `ON 9 →` | `← BAD_CHANNEL`, **không LED nào đổi** | | |
-| **TC-19** | FR-07 | `ON 0 →` | `← BAD_CHANNEL` | | |
-| **TC-20** | FR-07 | `ON 12 →` | `← BAD_CHANNEL` — **không** được hiểu thành kênh 1 | | |
-| **TC-21** | FR-07 | `ON abc →` | `← BAD_CHANNEL` | | |
-| **TC-22** | FR-12 | `ONLINE →` | `← Invalid Command` — **không** được hiểu thành `ON` | | |
-| **TC-23** | FR-12 | `on 1 →` (chữ thường) | `← Invalid Command` (giao thức phân biệt hoa thường) | | |
-| **TC-24** | FR-12 | `HELLO →` | `← Invalid Command` | | |
-| **TC-25** | FR-13 | Đặt app về **line ending = CR**, gửi `ON 2` | `← OUT2_ON`, không có bản tin lỗi thừa | | |
-| **TC-26** | FR-13 | Đặt app về **line ending = LF**, gửi `OFF 2` | `← OUT2_OFF` | | |
-| **TC-27** | FR-13 | Đặt app về **line ending = CR+LF**, gửi `ON 2` | `← OUT2_ON` và **không có** `Invalid Command` theo sau (khung rỗng phải bị bỏ qua lặng lẽ) | | |
-| **TC-28** | FR-13 | Đặt app về **no line ending**, gõ `ON 4` rồi gửi, chờ | Sau ~250 ms: `← OUT4_ON` | | |
-| **TC-29** | — | Gửi một chuỗi **dài hơn 128 ký tự** | `← Fail, try again!`, thiết bị vẫn nhận lệnh bình thường sau đó | | |
-| **TC-30** | — | Gửi một dòng **rỗng** (chỉ Enter) | Không có phản hồi nào, **không** có `Invalid Command` | | |
+| **TC-20** | FR-26 | Gửi `LOGIN 9999 →` hoặc `LOGIN 12 →` | `← LOGIN_FAIL`, quyền vẫn là `AUTH_NONE` | | |
+| **TC-21** | FR-27 | Gửi `LOGOUT →` khi chưa đăng nhập | `← ERR_NOT_OWNER` | | |
+| **TC-22** | FR-07 | Đăng nhập BLE thành công, rồi gửi `ON 5 →` | `← BAD_CHANNEL` (chỉ có 4 kênh 1..4) | | |
+| **TC-23** | FR-07 | Gửi `ON 0 →` hoặc `ON 9 →` | `← BAD_CHANNEL` | | |
+| **TC-24** | FR-07 | Gửi `ON 12 →` | `← BAD_CHANNEL` — không được hiểu thành kênh 1 | | |
+| **TC-25** | FR-07 | Gửi `ON abc →` | `← BAD_CHANNEL` | | |
+| **TC-26** | FR-12 | Gửi `ONLINE →` | `← Invalid Command` — không bị hiểu nhầm thành `ON` | | |
+| **TC-27** | FR-12 | Gửi `on 1 →` (chữ thường) | `← Invalid Command` (phân biệt hoa thường) | | |
+| **TC-28** | FR-13 | Đặt app về **line ending = CR**, gửi `LOGIN 1234` rồi `ON 2` | `← LOGIN_OK`, `← OUT2_ON` | | |
+| **TC-29** | FR-13 | Đặt app về **line ending = LF**, gửi `OFF 2` | `← OUT2_OFF` | | |
+| **TC-30** | FR-13 | Đặt app về **line ending = CR+LF**, gửi `ON 2` | `← OUT2_ON`, không có `Invalid Command` thừa | | |
+| **TC-31** | FR-13 | Đặt app về **no line ending**, gõ `ON 4` rồi gửi, chờ | Sau ~250 ms: `← OUT4_ON` | | |
+| **TC-32** | — | Gửi chuỗi dài hơn 128 ký tự | `← Fail, try again!`, thiết bị hoạt động bình thường tiếp | | |
 
 ---
 
-## 11.5 Nhóm D — Nút bấm và giao diện OLED
+## 11.5 Nhóm D — Nút bấm và giao diện OLED (Khóa & Bàn phím ảo)
 
 | ID | FR | Các bước | Kết quả mong đợi | KQ | Ghi chú |
 |---|---|---|---|---|---|
-| **TC-31** | FR-19, FR-20 | Từ HOME, bấm **NEXT** 5 lần, quan sát tiêu đề mỗi lần | `HOME` → `OUTPUTS` → `DHT11 SENSOR` → `LOG` → `HUONG DAN` → quay lại `HOME`. Chỉ số góc phải chạy `1/5` → `5/5` → `1/5` | | |
-| **TC-32** | FR-20 | Từ HOME, bấm **PREV** 1 lần | Nhảy thẳng tới `HUONG DAN` (`5/5`) | | |
-| **TC-33** | FR-19 | Xem trang OUTPUTS | 5 dòng đúng thứ tự: `1 OUT-1 PA8`, `2 OUT-2 PB15`, `3 OUT-3 PB14`, `4 OUT-4 PB13`, `5 OUT-5 PB12` | | |
-| **TC-34** | FR-20 | Ở trang OUTPUTS, bấm **DOWN** 4 lần | Dòng đảo màu (đang chọn) di chuyển 1 → 2 → 3 → 4 → 5 | | |
-| **TC-35** | FR-20 | Bấm **DOWN** thêm 1 lần nữa | Con trỏ **quay vòng** về dòng 1 | | |
-| **TC-36** | FR-20 | Bấm **UP** 1 lần từ dòng 1 | Con trỏ quay vòng ngược về dòng 5 | | |
-| **TC-37** | FR-05 | Ở trang OUTPUTS, chọn kênh 3, bấm **OK** | Cột trạng thái dòng 3 đổi `OFF` → `ON`, **LED D3 sáng** | | |
-| **TC-38** | FR-05 | Bấm **OK** lần nữa | Dòng 3 đổi lại `ON` → `OFF`, LED D3 tắt | | |
-| **TC-39** | FR-19 | Chọn kênh 2 ở trang OUTPUTS rồi bấm **PREV** về HOME | Ô số 2 ở trang HOME đang có **khung chọn bao ngoài** (con trỏ dùng chung giữa các trang) | | |
-| **TC-40** | FR-19 | Ở trang HOME, bật vài kênh rồi quan sát hàng ô | Ô của kênh BẬT được **tô đặc**, kênh TẮT để **rỗng**, khớp với LED thật | | |
-| **TC-41** | FR-19 | Xem trang HOME liên tục 1 phút | `hh:mm:ss` góc trái dưới tăng đều mỗi giây | | |
-| **TC-42** | FR-19 | Xem trang DHT11 SENSOR | Hiện `TEMP <n>°C`, `HUMI <n>%`, hai thanh mức có độ dài tương ứng, và `LAST OK <n>s` với `n` ≤ 3 | | |
-| **TC-43** | FR-21 | Ở trang LOG, bấm **UP** 3 lần | Cửa sổ cuộn về quá khứ, dải `x-y/12` trên tiêu đề thay đổi tương ứng | | |
-| **TC-44** | FR-21 | Bấm **UP** liên tục tới khi không cuộn được nữa | Dừng lại ở `1-5/12`, **không** cuộn quá dòng cũ nhất | | |
-| **TC-45** | FR-21 | Đang cuộn giữa chừng, bấm **OK** | Nhảy thẳng về bám đáy (`8-12/12`), **không** có kênh nào bị bật/tắt | | |
-| **TC-46** | FR-19 | Xem trang HUONG DAN | Hiện 5 dòng hướng dẫn, danh sách lệnh khớp với [06](06-giao-thuc-bluetooth.md) §6.3 | | |
-| **TC-47** | FR-22 | Bấm **NEXT** dứt khoát đúng 1 lần, 10 lần liên tiếp (nghỉ ~1 s giữa mỗi lần) | Mỗi lần chuyển **đúng 1 trang** — không có lần nào nhảy 2 trang | | |
-| **TC-48** | FR-22 | **Giữ** nút NEXT 3 giây rồi nhả | Chuyển **đúng 1 trang**; lúc nhả tay **không** chuyển thêm trang nào nữa | | |
-| **TC-49** | FR-22 | Bấm UP rồi bấm OK **ngay lập tức** (trong vòng < 100 ms) | **Cả hai** thao tác đều có tác dụng: con trỏ di chuyển **và** kênh được bật/tắt | | |
-| **TC-50** | FR-23 | Chưa kết nối app: xem tiêu đề. Rồi kết nối app, gửi 1 lệnh, xem lại | Trước: chỉ có `1/5`. Sau: có `BT 1/5` | | |
+| **TC-33** | FR-19 | Quan sát OLED sau khi boot xong | Hiển thị **Dashboard khóa**: `LOCKED`, `TEMP`, `HUMI`, `DHT: OK`, `BLE: LINK/NO`, `AUTH: NONE`, `ALARM: NORMAL`, `OUT: 0000`, `>> PRESS ANY KEY <<` | | |
+| **TC-34** | FR-19 | Khi đang ở Dashboard khóa, bấm thử nút UP, DOWN, OK | Không kênh nào bị bật/tắt (không sinh `toggle_output`). Màn hình lập tức chuyển sang **Bàn phím số ảo 3×4** với đệm `PIN: ` rỗng | | |
+| **TC-35** | FR-19 | Ở Bàn phím ảo, không thao tác trong **30 giây** | Tự động quay về Dashboard khóa | | |
+| **TC-36** | FR-19 | Bấm phím mở lại Bàn phím ảo. Bấm NEXT/PREV để đổi cột; UP/DOWN để đổi hàng | Ô được chọn tô nền trắng chữ đen di chuyển đúng theo ma trận 3×4 | | |
+| **TC-37** | FR-26 | Di chuyển và bấm OK chọn mã sai `1111` -> chọn ô ảo `OK` | Thanh tiêu đề hiển thị `WRONG PIN` trong ~1.5s, đệm xóa về rỗng | | |
+| **TC-38** | FR-26 | Chọn `<` khi chưa nhập số nào; chọn `OK` ảo khi mới nhập 2 số | Không có phản ứng sai, không crash | | |
+| **TC-39** | FR-26 | Nhập đúng `"1234"` -> chọn ô ảo `OK` | Đăng nhập thành công! Giao diện mở khóa chuyển thẳng vào **Trang 1 — HOME** của 5 trang tiêu chuẩn | | |
+| **TC-40** | FR-29 | Sau khi đăng nhập, không bấm bất kỳ nút nào trong **60 giây** | Phiên Local tự động hết hạn, màn hình tự động quay về Dashboard khóa | | |
+| **TC-41** | FR-19 | Đăng nhập lại. Bấm **NEXT** lần lượt qua 5 trang | `HOME` → `OUTPUTS` → `DHT11 SENSOR` → `LOG` → `HUONG DAN` → quay lại `HOME` (`1/5`..`5/5`) | | |
+| **TC-42** | FR-19 | Xem trang OUTPUTS | Hiển thị 4 kênh: `1 OUT-1 PB15`, `2 OUT-2 PB14`, `3 OUT-3 PB13`, `4 OUT-4 PB12` (không có PA8) | | |
+| **TC-43** | FR-05 | Ở trang OUTPUTS, chọn kênh 3, bấm **OK** vật lý | Kênh 3 chuyển `ON`, **LED D3 sáng** | | |
+| **TC-44** | FR-05 | Bấm **OK** lần nữa | Kênh 3 chuyển `OFF`, LED D3 tắt | | |
+| **TC-45** | FR-19 | Ở trang HOME, quan sát hàng ô vuông | Có đúng **4 ô vuông** tương ứng OUT1..OUT4. Ô sáng tô đặc, ô tắt để rỗng | | |
 
 ---
 
-## 11.6 Nhóm E — Cảm biến DHT11
+## 11.6 Nhóm E — Cảm biến DHT11 & Sức khỏe hệ thống
 
 | ID | FR | Các bước | Kết quả mong đợi | KQ | Ghi chú |
 |---|---|---|---|---|---|
-| **TC-51** | FR-16 | Xem trang LOG trong 20 giây | Xuất hiện `DHT OK` đều đặn, **khoảng 2 giây một dòng** | | |
-| **TC-52** | FR-16 | So `TEMP →` với nhiệt kế phòng | Chênh lệch trong ±3 °C | | |
-| **TC-53** | FR-17 | **Rút cảm biến DHT11** khỏi J6 khi board đang chạy. Chờ 10 giây | Trang LOG hiện `DHT FAIL` đều đặn 2 giây một dòng | | |
-| **TC-54** | FR-17 | Ngay sau TC-53, gửi `TEMP →` | Trả về **giá trị cũ trước khi rút**, không phải `0` và không phải số rác | | |
-| **TC-55** | FR-18 | Ngay sau TC-53, xem trang SENSOR | `LAST OK <n>s` với `n` **tăng dần** mỗi giây | | |
-| **TC-56** | FR-17 | **Cắm lại** cảm biến. Chờ 5 giây | LOG quay lại `DHT OK`, `LAST OK` reset về số nhỏ — **không cần reset board** | | |
-| **TC-57** | FR-18 | Reset board với cảm biến **chưa cắm**, xem trang SENSOR | Hiện `NO DATA` (không phải `LAST OK 0s`) | | |
-| **TC-58** | NFR-03 | Trong lúc cảm biến bị rút (mỗi phép đo mất 500 ms), gửi `ON 2 →` | Vẫn trả `OUT2_ON` — có thể trễ tới ~0,5 s nhưng **không được mất lệnh** | | |
+| **TC-46** | FR-16 | Xem trang LOG trong 20 giây khi cảm biến bình thường | Xuất hiện `DHT OK` đều đặn mỗi ~2 giây | | |
+| **TC-47** | FR-18 | **Rút dây cảm biến DHT11** khỏi J6 khi board đang chạy. Quan sát trong 5–10 giây | **(1)** Log xuất hiện dòng `DHT BAD`<br/>**(2)** Thanh tiêu đề trên **mọi trang** xuất hiện huy hiệu `!DHT`<br/>**(3)** Trang HOME góc phải dưới lập tức chuyển thành hộp đảo màu `DHT BAD` (thay vì giữ `DHT OK`)<br/>**(4)** Trang SENSOR hiển thị `DHT: BAD`<br/>**(5)** LED PA8 nhấp nháy liên tục chu kỳ 250 ms<br/>**(6)** `STATUS` báo `DHT=FAIL` và `ALARM=DHT_FAULT` | | |
+| **TC-48** | FR-17 | Ngay sau TC-47, gửi `TEMP →` và `HUM →` từ Bluetooth | Trả về số đo cũ trước khi rút (không gửi rác) | | |
+| **TC-49** | FR-18 | **Cắm lại dây cảm biến**. Chờ 3–4 giây | Ngay khi đọc thành công mẫu mới:<br/>**(1)** Huy hiệu `!DHT` trên thanh tiêu đề biến mất<br/>**(2)** Trang HOME khôi phục hiển thị `DHT OK`<br/>**(3)** LED PA8 ngừng nhấp nháy, trở về TẮT (nếu ẩm ≤ 90%)<br/>**(4)** LOG ghi `DHT OK` | | |
+| **TC-50** | FR-31 | Thổi hơi ẩm vào cảm biến để độ ẩm vượt > 90% | LED PA8 bật sáng liên tục; `STATUS` báo `ALARM=HIGH`. Khi độ ẩm giảm ≤ 90%: PA8 tự tắt, `STATUS` báo `ALARM=NORMAL` | | |
+| **TC-51** | FR-31 | Gửi các lệnh `ON ALL`, `OFF ALL`, `ON 1..4` | Không lệnh nào làm thay đổi trạng thái của chân PA8 | | |
 
 ---
 
-## 11.7 Nhóm F — Hội tụ hai đường điều khiển
-
-Đây là nhóm quan trọng nhất — kiểm tra yêu cầu FR-06.
+## 11.7 Nhóm F — Hội tụ hai đường điều khiển & Quyền ưu tiên Local
 
 | ID | FR | Các bước | Kết quả mong đợi | KQ | Ghi chú |
 |---|---|---|---|---|---|
-| **TC-59** | FR-06 | `OFF ALL →`. Dùng **nút bấm** bật kênh 3. Rồi gửi `STATUS →` | `← ... OUT=00100` — trạng thái do nút tạo ra được phản ánh đúng | | |
-| **TC-60** | FR-06 | Gửi `ON 4 →`. Rồi xem **trang OUTPUTS** | Dòng 4 hiện `ON` — trạng thái do lệnh Bluetooth tạo ra được phản ánh đúng trên màn hình | | |
-| **TC-61** | FR-06 | Gửi `ON 2 →`, rồi dùng **nút OK** tắt kênh 2, rồi `STATUS →` | `← ... OUT=00000` (giả sử các kênh khác đang tắt) — nút tắt được kênh do lệnh bật | | |
-| **TC-62** | FR-06 | Dùng **nút** bật kênh 5, rồi gửi `OFF 5 →` | `← OUT5_OFF`, LED D5 tắt, trang OUTPUTS dòng 5 hiện `OFF` | | |
-| **TC-63** | FR-21 | Bật kênh 1 bằng **nút**, rồi bật kênh 2 bằng **lệnh**. Xem trang LOG | Có **cả hai** dòng `OUT1 ON` và `OUT2 ON` — nhật ký ghi cả hai đường điều khiển | | |
-| **TC-64** | FR-06 | `ON ALL →`, rồi dùng nút tắt kênh 3, rồi `STATUS →` | `← ... OUT=11011` | | |
+| **TC-52** | FR-30 | BLE gửi `LOGIN 1234` thành công (`AUTH_BLE`). Sau đó trên OLED, người dùng mở keypad và nhập `"1234"` | **(1)** Local đăng nhập thành công, OLED mở trang HOME<br/>**(2)** Trên Terminal BLE lập tức nhận được dòng `LOCAL LOGIN - KICKED\r\n`<br/>**(3)** Quyền phiên chuyển sang `AUTH_LOCAL` | | |
+| **TC-53** | FR-30 | Ngay sau TC-52, từ BLE gửi `ON 1 →` | `← ERR_LOCKED` (quyền BLE đã bị thu hồi) | | |
+| **TC-54** | FR-30 | Từ BLE gửi `LOGIN 1234 →` trong lúc Local đang giữ phiên | `← LOGIN_BUSY_LOCAL` (Local được bảo vệ độc quyền) | | |
+| **TC-55** | FR-06 | Sau khi Local đăng nhập, bấm nút bật kênh 3. Rồi từ BLE gửi `STATUS →` | `← ... AUTH=LOCAL ... OUT=0010` — trạng thái do nút bật được phản ánh đúng qua Bluetooth | | |
+| **TC-56** | FR-29 | Để yên không bấm nút trong 60 giây. Sau đó từ BLE gửi `LOGIN 1234 →` | `← LOGIN_OK` — phiên Local đã hết hạn, BLE đăng nhập lại thành công | | |
+| **TC-57** | FR-06 | BLE gửi `OFF ALL →`, sau đó `ON 4 →`. Quan sát trang OUTPUTS trên OLED | Dòng 4 hiện `ON`, 3 dòng còn lại hiện `OFF` | | |
 
 ---
 
@@ -145,31 +136,31 @@ Ký hiệu: `→` = gửi lệnh từ điện thoại, `←` = nhận từ thi�
 
 | ID | FR | Các bước | Kết quả mong đợi | KQ | Ghi chú |
 |---|---|---|---|---|---|
-| **TC-65** | FR-14 | Kết nối app rồi gửi lệnh đầu tiên. Xem trang LOG | Có dòng `BT LINK UP` (chỉ xuất hiện **một lần** duy nhất) | | |
-| **TC-66** | FR-14 | Sau khi đã kết nối, **không gửi gì** trong 15 giây | Nhận được `← Disconnected` sau khoảng 10 giây | | |
-| **TC-67** | FR-14 | Ngay sau TC-66, gửi `STATUS →` | Trả lời bình thường với `BT=OK` — kết nối tự phục hồi | | |
-| **TC-68** | FR-09 | Kết nối app, **không thao tác gì**, đếm bản tin trong 30 giây | Nhận đúng khoảng **10 bản tin** trạng thái (3 s/bản) | | |
-| **TC-69** | — | Tắt nguồn module Bluetooth (hoặc tắt Bluetooth điện thoại) trong 30 giây rồi bật lại | Board vẫn chạy bình thường: LED PC13 vẫn nháy, OLED vẫn cập nhật, nút vẫn dùng được. Kết nối lại được | | |
-| **TC-70** | — | Gửi 20 lệnh `ON 1` / `OFF 1` xen kẽ, **mỗi lệnh chờ nhận trả lời rồi mới gửi tiếp** | Đủ 20 câu trả lời, LED D1 đổi trạng thái đúng 20 lần | | |
-| **TC-71** | — | Bấm nút **liên tục** trong lúc đang gửi lệnh Bluetooth (30 giây) | Không treo, không mất lệnh, không có ký tự rác trên terminal | | |
-| **TC-72** | NFR-09 | Để board chạy **liên tục 30 phút**, sau đó kiểm tra | LED PC13 vẫn nháy đều, uptime trang HOME đúng ~`00:30:00`, `STATUS` vẫn trả lời | | |
-| **TC-73** | FR-25 | Bật vài kênh, **cắt nguồn rồi cấp lại** | Cả 5 kênh về **TẮT** (hệ thống không lưu trạng thái — đây là hành vi đúng) | | |
-| **TC-74** | — | Nhấn nút RESET trên Blue Pill | Board khởi động lại đầy đủ: `MKE-M15 ready`, OLED về `BOOTING` rồi HOME, LOG chỉ còn `BOOT OK` | | |
+| **TC-58** | FR-14 | Kết nối app rồi gửi lệnh đầu tiên. Xem trang LOG | Có dòng `BT LINK UP` (chỉ xuất hiện **một lần** duy nhất) | | |
+| **TC-59** | FR-14 | Sau khi đã kết nối, **không gửi gì** trong 15 giây | Nhận được `← Disconnected` sau khoảng 10 giây | | |
+| **TC-60** | FR-14 | Ngay sau TC-59, gửi `STATUS →` | Trả lời bình thường với `BT=OK` — kết nối tự phục hồi | | |
+| **TC-61** | FR-09 | Kết nối app, **không thao tác gì**, đếm bản tin trong 30 giây | Nhận đúng khoảng **10 bản tin** trạng thái (3 s/bản) | | |
+| **TC-62** | — | Tắt nguồn module Bluetooth (hoặc tắt Bluetooth điện thoại) trong 30 giây rồi bật lại | Board vẫn chạy bình thường: LED PC13 vẫn nháy, OLED vẫn cập nhật, nút vẫn dùng được. Kết nối lại được | | |
+| **TC-63** | — | Gửi 20 lệnh `ON 1` / `OFF 1` xen kẽ (sau khi login), **mỗi lệnh chờ nhận trả lời rồi mới gửi tiếp** | Đủ 20 câu trả lời, LED D1 đổi trạng thái đúng 20 lần | | |
+| **TC-64** | — | Bấm nút **liên tục** trong lúc đang gửi lệnh Bluetooth (30 giây) | Không treo, không mất lệnh, không có ký tự rác trên terminal | | |
+| **TC-65** | NFR-09 | Để board chạy **liên tục 30 phút**, sau đó kiểm tra | LED PC13 vẫn nháy đều, uptime trang HOME đúng ~`00:30:00`, `STATUS` vẫn trả lời | | |
+| **TC-66** | FR-25 | Bật vài kênh, **cắt nguồn rồi cấp lại** | Cả 4 kênh về **TẮT** (hệ thống không lưu trạng thái — đây là hành vi đúng) | | |
+| **TC-67** | — | Nhấn nút RESET trên Blue Pill | Board khởi động lại đầy đủ: `MKE-M15 ready`, OLED về `BOOTING` rồi Locked Dashboard, LOG chỉ còn `BOOT OK` | | |
 
 ---
 
 ## 11.9 Nhóm H — Kiểm tra tải thật (sau khi mọi nhóm trên đã đạt)
 
-> ⚠️ Chỉ chạy nhóm này khi **toàn bộ TC-01..TC-74 đều Pass**. Làm việc với module công suất
+> ⚠️ Chỉ chạy nhóm này khi **toàn bộ TC-01..TC-67 đều Pass**. Làm việc với module công suất
 > và tải điện lưới đòi hỏi cẩn trọng — xem [03](03-thiet-ke-phan-cung.md) §3.7.
 
 | ID | Các bước | Kết quả mong đợi | KQ | Ghi chú |
 |---|---|---|---|---|
-| **TC-75** | Đo điện áp chân SIG của J1 khi kênh 1 TẮT | Gần 0 V | | |
-| **TC-76** | Đo điện áp chân SIG của J1 khi kênh 1 BẬT | Mức logic cao (≈3,3 V trừ sụt áp trên điện trở 330 Ω) | | |
-| **TC-77** | Cắm **một** module relay vào J1. Gửi `ON 1` / `OFF 1` | Nghe rõ tiếng relay đóng/mở đúng theo lệnh | | |
-| **TC-78** | Cắm module relay vào cả 5 connector. Gửi `ON ALL` | Cả 5 relay đóng; kiểm tra nguồn 5 V không sụt gây reset MCU (LED PC13 vẫn nháy đều) | | |
-| **TC-79** | Với đủ 5 module, chạy `ON ALL` / `OFF ALL` xen kẽ 10 lần | Hoạt động ổn định, không reset, không mất kết nối Bluetooth | | |
+| **TC-68** | Đo điện áp chân SIG của J1 khi kênh 1 TẮT | Gần 0 V | | |
+| **TC-69** | Đo điện áp chân SIG của J1 khi kênh 1 BẬT | Mức logic cao (≈3,3 V trừ sụt áp trên điện trở 330 Ω) | | |
+| **TC-70** | Cắm **một** module relay vào J1. Gửi `ON 1` / `OFF 1` | Nghe rõ tiếng relay đóng/mở đúng theo lệnh | | |
+| **TC-71** | Cắm module relay vào cả 4 connector (J1..J4). Gửi `ON ALL` | Cả 4 relay đóng; kiểm tra nguồn 5 V không sụt gây reset MCU (LED PC13 vẫn nháy đều) | | |
+| **TC-72** | Với đủ 4 module, chạy `ON ALL` / `OFF ALL` xen kẽ 10 lần | Hoạt động ổn định, không reset, không mất kết nối Bluetooth | | |
 
 ---
 
@@ -178,14 +169,14 @@ Ký hiệu: `→` = gửi lệnh từ điện thoại, `←` = nhận từ thi�
 | Nhóm | Số ca | Pass | Fail | Không chạy |
 |---|---|---|---|---|
 | A — Khởi động | 6 | | | |
-| B — Lệnh hợp lệ | 11 | | | |
-| C — Lệnh lỗi và biên | 13 | | | |
-| D — Nút bấm và OLED | 20 | | | |
-| E — Cảm biến | 8 | | | |
-| F — Hội tụ hai đường điều khiển | 6 | | | |
+| B — Lệnh hợp lệ & Xác thực | 13 | | | |
+| C — Lệnh lỗi, biên & Phân quyền | 13 | | | |
+| D — Nút bấm và OLED | 13 | | | |
+| E — Cảm biến & Sức khỏe | 6 | | | |
+| F — Hội tụ & Ưu tiên Local | 6 | | | |
 | G — Kết nối và độ bền | 10 | | | |
 | H — Tải thật | 5 | | | |
-| **Tổng** | **79** | | | |
+| **Tổng** | **72** | | | |
 
 **Người kiểm thử**: ______________  **Ngày**: ______________
 **Phiên bản firmware** (git commit): ______________

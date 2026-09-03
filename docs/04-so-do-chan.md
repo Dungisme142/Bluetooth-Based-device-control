@@ -14,17 +14,17 @@ Mọi pin/port/IRQn phải khai báo ở đó; driver không được hardcode. 
 | **PA5** | Nút **UP** | Input EXTI both edges | PULLUP | `EXTI9_5_IRQn` |
 | **PA6** | Nút **PREV** | Input EXTI both edges | PULLUP | `EXTI9_5_IRQn` |
 | **PA7** | Nút **OK** | Input EXTI both edges | PULLUP | `EXTI9_5_IRQn` |
-| **PA8** | **OUT-1** | Output Push-Pull | NOPULL | Kênh duy nhất nằm trên GPIOA |
+| **PA8** | **ALARM** | Output Push-Pull | NOPULL | **Active HIGH** — Chân cảnh báo tự động độ ẩm & lỗi cảm biến |
 | **PA13** | SWDIO | — | — | Dành riêng cho nạp/debug |
 | **PA14** | SWCLK | — | — | Dành riêng cho nạp/debug |
 | **PB0** | Nút **DOWN** | Input EXTI both edges | PULLUP | `EXTI0_IRQn` |
 | **PB1** | Nút **NEXT** | Input EXTI both edges | PULLUP | `EXTI1_IRQn` |
 | **PB10** | I2C2_SCL → OLED | AF Open-Drain, HIGH speed | — | 400 kHz |
 | **PB11** | I2C2_SDA → OLED | AF Open-Drain, HIGH speed | — | 400 kHz |
-| **PB12** | **OUT-5** | Output Push-Pull | NOPULL | |
-| **PB13** | **OUT-4** | Output Push-Pull | NOPULL | |
-| **PB14** | **OUT-3** | Output Push-Pull | NOPULL | |
-| **PB15** | **OUT-2** | Output Push-Pull | NOPULL | |
+| **PB12** | **OUT-4** | Output Push-Pull | NOPULL | Kênh 4 |
+| **PB13** | **OUT-3** | Output Push-Pull | NOPULL | Kênh 3 |
+| **PB14** | **OUT-2** | Output Push-Pull | NOPULL | Kênh 2 |
+| **PB15** | **OUT-1** | Output Push-Pull | NOPULL | Kênh 1 |
 | **PC13** | LED nhịp tim (onboard) | Output Push-Pull, LOW speed | NOPULL | **Active LOW** |
 
 ### Chân còn trống
@@ -81,7 +81,19 @@ DHT11 dùng PA4 → `EXTI4_IRQn` là một vector **riêng**. Nếu đặt một
 dùng chung vector với DHT11, và mỗi lần người dùng bấm nút giữa lúc đang đọc cảm biến,
 ISR sẽ lấy nhầm timestamp → sai bit. Việc phân bổ chân nút sang line 0, 1, 5, 6, 7 là chủ ý.
 
-## 4.4 Ánh xạ vector ngắt
+## 4.4 Chân cảnh báo tự động ALARM (PA8)
+
+Chân **PA8** được điều khiển hoàn toàn tự động bởi máy trạng thái cảnh báo trong `Alarm_Task()` (`main.c`), độc lập với phiên đăng nhập và không xuất hiện trong bảng lệnh điều khiển GPIO (`outputs[]`):
+
+| Trạng thái | Điều kiện kích hoạt | Hành vi chân PA8 | Trạng thái trong chuỗi STATUS |
+|---|---|---|---|
+| **Bình thường (NORMAL)** | Mẫu DHT hợp lệ gần nhất có độ ẩm ≤ 90% | **TẮT** (mức LOW, 0 V) | `ALARM=NORMAL` |
+| **Ẩm cao (HIGH)** | Mẫu DHT hợp lệ gần nhất có độ ẩm > 90% | **BẬT LIÊN TỤC** (mức HIGH, ~3.3 V) | `ALARM=HIGH` |
+| **Lỗi cảm biến (DHT_FAULT)** | Chưa có mẫu DHT hợp lệ (lúc vừa boot) hoặc lần đọc gần nhất bị lỗi/quá hạn | **ĐẢO MỨC LIÊN TỤC CHU KỲ 250 ms** (nhấp nháy 2 Hz) | `ALARM=DHT_FAULT` |
+
+> **Quy tắc chuyển trạng thái**: Ngay khi nhận được một mẫu đọc DHT11 hợp lệ kế tiếp, hệ thống lập tức thoát khỏi trạng thái `DHT_FAULT` và chuyển thẳng về `NORMAL` hoặc `HIGH` tương ứng với giá trị độ ẩm đo được.
+
+## 4.5 Ánh xạ vector ngắt
 
 Bảng handler nằm ở [`stm-firmware/src/stm32f1xx_it.c`](../stm-firmware/src/stm32f1xx_it.c).
 
@@ -99,19 +111,19 @@ Bảng handler nằm ở [`stm-firmware/src/stm32f1xx_it.c`](../stm-firmware/src
 **trước** vì `UI_HandleButtonIrq()` trả về `false` ngay khi chân không phải của nó; chân
 nào không ai nhận thì được bỏ qua.
 
-## 4.5 Thứ tự khởi tạo bắt buộc
+## 4.6 Thứ tự khởi tạo bắt buộc
 
 Thứ tự trong `main()` (`main.c:156-195`) không được đảo:
 
 ```
 1.  HAL_Init()                    ─ SysTick, NVIC grouping
 2.  SystemClock_Config()          ─ 72 MHz; phải xong trước mọi tính toán baud/prescaler
-3.  MX_GPIO_Init()                ─ bật clock GPIOA/B/C, ghi mức TẮT lên 5 chân ngõ ra,
-                                    cấu hình nút + LED, đặt ưu tiên EXTI
+3.  MX_GPIO_Init()                ─ bật clock GPIOA/B/C, ghi mức TẮT lên PA8 (ALARM) và
+                                    4 chân ngõ ra (PB12..PB15), cấu hình nút + LED, đặt ưu tiên EXTI
 4.  MX_USART2_UART_Init()         ─ kéo theo HAL_UART_MspInit(): chân AF + NVIC USART2
 5.  MX_I2C2_Init()                ─ kéo theo HAL_I2C_MspInit(): PB10/PB11 AF-OD
 6.  MX_TIM2_Init()                ─ 1 MHz, bật NVIC TIM2
-7.  Digital_Out_Init() × 5        ─ chuyển 5 chân sang output (mức đã an toàn từ bước 3)
+7.  Digital_Out_Init() × 4        ─ chuyển 4 chân OUT1..OUT4 sang output (mức đã an toàn từ bước 3)
     + Set_Output(i, false)
 8.  DHT11_Init()                  ─ cần htim2 đã sẵn sàng từ bước 6
 9.  UI_Init()                     ─ cần hi2c2 đã sẵn sàng từ bước 5
@@ -122,8 +134,9 @@ Thứ tự trong `main()` (`main.c:156-195`) không được đảo:
 
 **Điểm mấu chốt ở bước 3 → 7**: sau reset, chân GPIO là input floating và thanh ghi ODR có
 thể còn giữ mức của lần chạy trước. Nếu chuyển chân sang output *rồi mới* ghi mức, thiết bị
-sẽ bật trong vài chu kỳ clock. Vì vậy `MX_GPIO_Init()` ghi mức TẮT lên cả 5 chân **trước**,
+sẽ bật trong vài chu kỳ clock. Vì vậy `MX_GPIO_Init()` ghi mức TẮT lên cả PA8 và 4 chân GPIOB **trước**,
 rồi `Digital_Out_Init()` mới đổi chúng sang output. Đây là cách hiện thực yêu cầu FR-25.
 
-PA4 (DHT11) và 5 chân ngõ ra **cố ý không** được cấu hình trong `MX_GPIO_Init()` — driver
-tương ứng tự lo, vì chân DHT11 còn phải đổi mode qua lại lúc chạy.
+PA4 (DHT11) và 4 chân ngõ ra **cố ý không** được cấu hình trong `MX_GPIO_Init()` — driver
+tương ứng tự lo, vì chân DHT11 còn phải đổi mode qua lại lúc chạy. Chân PA8 (ALARM) được
+cấu hình output push-pull trực tiếp trong `MX_GPIO_Init()`.

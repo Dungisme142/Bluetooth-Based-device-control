@@ -33,56 +33,53 @@
 #define DHT11_EXTI_IRQn EXTI4_IRQn
 #define DHT11_EXTI_PRIO 5U /* PHẢI cao hơn (số nhỏ hơn) UART — xem PIN_MAP.md §4 */
 
-/*---------------- 5 NGÕ RA SỐ ĐIỀU KHIỂN THIẾT BỊ ----------------*/
-/* OUT-1..OUT-5 theo schematic: PA8, PB15, PB14, PB13, PB12.
- *
- * Không còn module relay nào trong mạch — 5 chân này chỉ là 5 tín hiệu số mức
- * logic đưa ra hàng rào chân cắm. Tầng công suất (nếu có) nằm ngoài board.
+/*---------------- CHÂN CẢNH BÁO TỰ ĐỘNG (ALARM) ----------------*/
+/* PA8: Điều khiển tự động theo độ ẩm (> 90%) và lỗi cảm biến DHT11 (nhấp nháy 250ms).
+ * Active-HIGH. Không nằm trong outputs[] hay bảng lệnh GPIO thủ công. */
+#define ALARM_PORT     GPIOA
+#define ALARM_PIN      GPIO_PIN_8
+#define ALARM_ON_STATE GPIO_PIN_SET
+#define ALARM_NAME     "ALARM"
+#define ALARM_PIN_NAME "PA8"
+
+/*---------------- 4 NGÕ RA SỐ ĐIỀU KHIỂN THIẾT BỊ ----------------*/
+/* OUT-1..OUT-4: PB15, PB14, PB13, PB12.
+ * Cả 4 kênh đều nằm trên GPIOB.
  *
  * _ON_STATE tách riêng để đảo cực tính khi tầng ngoài tác động mức THẤP mà
  * không phải sửa logic ở đâu khác.
- * _NAME là nhãn hiện trên OLED — để ở đây để nhãn và chân không trôi khỏi nhau
- * (tối đa 5 ký tự cho vừa bố cục trang OUTPUTS).
- * _PIN_NAME là tên chân in trên board, cũng hiện trên OLED. */
-#define OUT1_PORT     GPIOA
-#define OUT1_PIN      GPIO_PIN_8
+ * _NAME là nhãn hiện trên OLED (tối đa 5 ký tự).
+ * _PIN_NAME là tên chân in trên board. */
+#define OUT1_PORT     GPIOB
+#define OUT1_PIN      GPIO_PIN_15
 #define OUT1_ON_STATE GPIO_PIN_SET
 #define OUT1_NAME     "OUT-1"
-#define OUT1_PIN_NAME "PA8"
+#define OUT1_PIN_NAME "PB15"
 
 #define OUT2_PORT     GPIOB
-#define OUT2_PIN      GPIO_PIN_15
+#define OUT2_PIN      GPIO_PIN_14
 #define OUT2_ON_STATE GPIO_PIN_SET
 #define OUT2_NAME     "OUT-2"
-#define OUT2_PIN_NAME "PB15"
+#define OUT2_PIN_NAME "PB14"
 
 #define OUT3_PORT     GPIOB
-#define OUT3_PIN      GPIO_PIN_14
+#define OUT3_PIN      GPIO_PIN_13
 #define OUT3_ON_STATE GPIO_PIN_SET
 #define OUT3_NAME     "OUT-3"
-#define OUT3_PIN_NAME "PB14"
+#define OUT3_PIN_NAME "PB13"
 
 #define OUT4_PORT     GPIOB
-#define OUT4_PIN      GPIO_PIN_13
+#define OUT4_PIN      GPIO_PIN_12
 #define OUT4_ON_STATE GPIO_PIN_SET
 #define OUT4_NAME     "OUT-4"
-#define OUT4_PIN_NAME "PB13"
+#define OUT4_PIN_NAME "PB12"
 
-#define OUT5_PORT     GPIOB
-#define OUT5_PIN      GPIO_PIN_12
-#define OUT5_ON_STATE GPIO_PIN_SET
-#define OUT5_NAME     "OUT-5"
-#define OUT5_PIN_NAME "PB12"
+/* Gộp theo port để main.c ghi mức TẮT một lần mỗi port */
+#define OUT_GPIOA_PINS (ALARM_PIN)
+#define OUT_GPIOB_PINS (OUT1_PIN | OUT2_PIN | OUT3_PIN | OUT4_PIN)
 
-/* Gộp theo port để main.c ghi mức TẮT một lần mỗi port trước khi các chân
- * thành output. OUT-1 nằm một mình trên GPIOA, 4 kênh còn lại trên GPIOB. */
-#define OUT_GPIOA_PINS (OUT1_PIN)
-#define OUT_GPIOB_PINS (OUT2_PIN | OUT3_PIN | OUT4_PIN | OUT5_PIN)
-
-/* Số kênh — cả tầng app lẫn tầng UI đều lấy con số này từ đây, không ai tự
- * khai lại. Thêm kênh = thêm một khối OUTn_* ở trên, tăng số này, và thêm một
- * dòng vào ui_outputs[] trong src/ui.c cùng outputs[] trong src/main.c. */
-#define OUT_COUNT 5U
+/* Số kênh ngõ ra điều khiển thiết bị: 4 kênh */
+#define OUT_COUNT 4U
 
 /*---------------- NÚT NHẤN ----------------*/
 /* 5 nút theo schematic: PA5 = UP, PA6 = PREV, PA7 = OK, PB0 = DOWN, PB1 = NEXT.
