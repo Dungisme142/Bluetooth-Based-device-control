@@ -250,8 +250,8 @@ Nội dung tĩnh, nhắc nhanh tập lệnh và vai trò 5 nút.
 ├────────────────────────────────┤
 │ BTN: NEXT PREV UP DN           │
 │      OK = BAT/TAT              │
-│ CMD: ON n / OFF n              │
-│      ON ALL/OFF ALL            │
+│ CMD: LOGIN 1234/LOGOUT         │
+│      ON 1-4 / OFF 1-4          │
 │      STATUS TEMP HUM           │
 └────────────────────────────────┘
 ```
